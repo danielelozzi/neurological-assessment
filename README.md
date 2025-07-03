@@ -1,6 +1,7 @@
 # Neurological Assessment Analysis Pipeline
 
 This project provides a multi-step pipeline for processing and analyzing video recordings from a computerized neurological assessment. The pipeline automates perspective correction, ball and gaze tracking, video segmentation, and the generation of a detailed performance report.
+It needs the video recorded using Pupil Lab Neon eye-tracking glasses recorded using the powerpoint presentation of neurological assessemnt.
 
 ## Pipeline Workflow
 
