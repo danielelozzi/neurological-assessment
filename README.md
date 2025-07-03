@@ -41,6 +41,7 @@ This script takes the raw experiment video and associated data files, performs p
 *   `world_timestamps.csv`: Timestamps for each video frame.
 *   `gaze.csv`: Gaze position data.
 *   `surface_positions.csv`: The coordinates of the four corners of the target surface for each frame.
+*   `3d_eye_states.csv`: Pupillometry data.
 *   (Optional) `yolov8x.pt`: The YOLOv8 model file if using the YOLO detector.
 
 **Command:**
