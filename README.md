@@ -15,8 +15,8 @@ L'obiettivo è automatizzare e standardizzare l'analisi delle performance visuo-
 1.  **Identifica e isola** i segmenti di interesse del test ("fast" e "slow"). 
 2.  **Rileva la palla** e ne traccia il movimento nel video. 
 3.  **Sincronizza i dati dello sguardo** con la posizione della palla. 
-4.  **Calcola metriche chiave** come la velocità dello sguardo, la velocità della palla e la percentuale di tempo in cui lo sguardo è correttamente sulla palla. [cite: 3, 6]
-5.  **Produce un report Excel dettagliato** e visualizzazioni grafiche (heatmap, grafici pupillometrici) per un'analisi approfondita. [cite: 3, 6]
+4.  **Calcola metriche chiave** come la velocità dello sguardo, la velocità della palla e la percentuale di tempo in cui lo sguardo è correttamente sulla palla. 
+5.  **Produce un report Excel dettagliato** e visualizzazioni grafiche (heatmap, grafici pupillometrici) per un'analisi approfondita. 
 
 ---
 
