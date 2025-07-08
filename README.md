@@ -102,6 +102,8 @@ Al termine dell'analisi, troverai i seguenti file nella cartella di Output che h
 * **`trimmed_video_fast.mp4` / `trimmed_video_slow.mp4`**: I clip video dei singoli protocolli. 
 * **Cartella `plots_and_heatmaps/`**: Contiene le visualizzazioni grafiche, incluse le heatmap dello sguardo e i grafici sulla pupillometria.
 
+---
+
 ## Citazione
 
 *Se utilizzi questo script nella tua ricerca o nel tuo lavoro, ti preghiamo di citare le seguenti pubblicazioni:*
