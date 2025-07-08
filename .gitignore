@@ -1,0 +1,4 @@
+.DS_Store
+__pycache__/detect_and_save_ball.cpython-310.pyc
+__pycache__/generate_report.cpython-310.pyc
+__pycache__/trim_video.cpython-310.pyc
