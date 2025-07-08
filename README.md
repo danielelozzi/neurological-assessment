@@ -7,7 +7,7 @@ Questo repository contiene una pipeline software completa per l'analisi del movi
 
 L'intero processo è gestito da un'unica **interfaccia grafica (GUI)** che orchestra l'elaborazione dei dati, dal taglio dei video grezzi fino alla generazione di un report statistico finale. 
 
----
+
 
 ## 🎯 Obiettivo del Software
 
@@ -18,7 +18,7 @@ L'obiettivo è automatizzare e standardizzare l'analisi delle performance visuo-
 4.  **Calcola metriche chiave** come la velocità dello sguardo, la velocità della palla e la percentuale di tempo in cui lo sguardo è correttamente sulla palla. 
 5.  **Produce un report Excel dettagliato** e visualizzazioni grafiche (heatmap, grafici pupillometrici) per un'analisi approfondita. 
 
----
+
 
 ## 📋 Prerequisiti: Acquisizione e Preparazione dei Dati
 
@@ -39,7 +39,7 @@ Prima di utilizzare questo software, è necessario acquisire e preparare i dati 
 
     * **surface_positions.csv**: *Contiene le coordinate della superficie tracciata tramite gli AprilTag per ogni frame. Viene generato dall'enrichment "Marker Mapper" ed è cruciale per correggere la prospettiva e mappare lo sguardo sulla superficie corretta.*
 
----
+
 
 ## 🛠️ Installazione
 
@@ -56,7 +56,7 @@ Per utilizzare il software, sono necessarie alcune librerie Python. È fortement
     pip install customtkinter opencv-python pandas numpy matplotlib seaborn scipy easyocr ultralytics xlsxwriter
     ```
 
----
+
 
 ## 🚀 Utilizzo
 
@@ -89,7 +89,7 @@ L'intera pipeline viene eseguita tramite l'interfaccia grafica.
 4.  **Monitora il Progresso**:
     Puoi seguire ogni fase dell'elaborazione nel riquadro **"Log di Analisi"** in tempo reale. 
 
----
+
 
 ## 📊 Output del Progetto
 
