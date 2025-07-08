@@ -31,7 +31,7 @@ class MainApp(ctk.CTk):
         super().__init__()
 
         # --- CONFIGURAZIONE FINESTRA ---
-        self.title("LabSCoC - Strumento di Analisi Neuro-Visuale")
+        self.title("LabSCoC -  Strumento di Analisi dei dati dell'Assessment Neurologico Computerizzato (CNA)")
         self.geometry("800x750")
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
@@ -68,7 +68,7 @@ class MainApp(ctk.CTk):
         main_frame.grid_columnconfigure(1, weight=1)
 
         # Input Directory
-        ctk.CTkLabel(main_frame, text="1. Cartella Input (Dati Tobii):").grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        ctk.CTkLabel(main_frame, text="1. Cartella Input (Dati Pupil Lab Neon):").grid(row=0, column=0, padx=10, pady=10, sticky="w")
         self.input_dir_label = ctk.CTkLabel(main_frame, textvariable=self.input_dir, text_color="gray")
         self.input_dir_label.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
         ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_input_dir).grid(row=0, column=2, padx=10, pady=10)

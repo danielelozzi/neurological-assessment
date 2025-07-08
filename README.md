@@ -1,4 +1,4 @@
- Strumento di Analisi Neuro-Visuale - LabSCoC (Laboratorio di Scienze Cognitive e del Comportamento)
+ Strumento di Analisi dei dati dell'Assessment Neurologico Computerizzato (CNA) - LabSCoC (Laboratorio di Scienze Cognitive e del Comportamento)
 
 - **Sito Web Lab**: [labscoc.wordpress.com](https://labscoc.wordpress.com/)
 - **Repository GitHub**: [github.com/danielelozzi/neurological-assessment](https://github.com/danielelozzi/neurological-assessment)
