@@ -24,8 +24,8 @@ L'obiettivo è automatizzare e standardizzare l'analisi delle performance visuo-
 
 Prima di utilizzare questo software, è necessario acquisire e preparare i dati seguendo una procedura specifica con gli strumenti di Pupil Labs.
 
-1.  **Registrazione Video**: Utilizzare gli occhiali **Pupil Labs Neon** per registrare la sessione di test. Per l'analisi è fondamentale inquadrare una superficie piana (es. un monitor o un tavolo).
-2.  **Definizione della Superficie (AprilTag)**: Posizionare degli **AprilTag** ai quattro angoli della superficie di interesse. Questi marcatori permettono al software di Pupil Labs di tracciare la superficie e mappare le coordinate dello sguardo su di essa.
+1.  **Registrazione Video**: Utilizzare gli occhiali **Pupil Labs Neon** per registrare la sessione di test durante la proiezione del file PowerPoint *Saccadici_renato_aggiornato.pptx*.
+2.  **Definizione della Superficie (AprilTag)**: Posizionare degli **AprilTag** ai quattro angoli dello schermo del Pc. Questi marcatori permettono al software di Pupil Labs di tracciare la superficie e mappare le coordinate dello sguardo su di essa.
     * Per maggiori dettagli, consultare la documentazione ufficiale: [**Pupil Labs Surface Tracker**](https://docs.pupil-labs.com/neon/neon-player/surface-tracker/).
 3.  **Caricamento su Pupil Cloud**: Una volta completata la registrazione, caricare i dati sulla piattaforma **Pupil Cloud**.
 4.  **Enrichment con Marker Mapper**: All'interno di Pupil Cloud, avviare l'enrichment **Marker Mapper**. Questo processo analizza il video, rileva gli AprilTag e genera il file `surface_positions.csv`, che contiene le coordinate della superficie per ogni frame.
