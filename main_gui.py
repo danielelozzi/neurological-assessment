@@ -31,8 +31,8 @@ class MainApp(ctk.CTk):
         super().__init__()
 
         # --- CONFIGURAZIONE FINESTRA ---
-        self.title("LabSCoC -  Strumento di Analisi dei dati dell'Assessment Neurologico Computerizzato (CNA)")
-        self.geometry("800x750")
+        self.title("LabSCoC - Strumento di Analisi dei dati dell'Assessment Neurologico Computerizzato (CNA)")
+        self.geometry("800x850") # Aumentata l'altezza per il nuovo testo
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
@@ -68,30 +68,46 @@ class MainApp(ctk.CTk):
         main_frame.grid_columnconfigure(1, weight=1)
 
         # Input Directory
-        ctk.CTkLabel(main_frame, text="1. Cartella Input (Dati Pupil Lab Neon):").grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        ctk.CTkLabel(main_frame, text="1. Cartella Input (Dati Pupil Lab Neon con April Tag Mark Mapper):").grid(row=0, column=0, padx=10, pady=10, sticky="w")
         self.input_dir_label = ctk.CTkLabel(main_frame, textvariable=self.input_dir, text_color="gray")
         self.input_dir_label.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
         ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_input_dir).grid(row=0, column=2, padx=10, pady=10)
 
+        # --- NUOVA SEZIONE: DESCRIZIONE FILE INPUT ---
+        input_info_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        input_info_frame.grid(row=1, column=0, columnspan=3, padx=15, pady=(0, 10), sticky="ew")
+        
+        info_text = (
+            "La cartella deve contenere i seguenti file scaricati da Pupil Cloud (dopo l'enrichment 'Marker Mapper'):\n"
+            "• video.mp4: La registrazione video della scena.\n"
+            "• gaze.csv: I dati grezzi dello sguardo.\n"
+            "• world_timestamps.csv: I timestamp per la sincronizzazione video-sguardo.\n"
+            "• surface_positions.csv: Le coordinate della superficie tracciata dagli AprilTag."
+        )
+        
+        info_label = ctk.CTkLabel(input_info_frame, text=info_text, text_color="gray", justify="left", font=ctk.CTkFont(size=11))
+        info_label.pack(anchor="w")
+        # --- FINE NUOVA SEZIONE ---
+
         # Output Directory
-        ctk.CTkLabel(main_frame, text="2. Cartella Output:").grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        ctk.CTkLabel(main_frame, text="2. Cartella Output:").grid(row=2, column=0, padx=10, pady=10, sticky="w")
         self.output_dir_label = ctk.CTkLabel(main_frame, textvariable=self.output_dir, text_color="gray")
-        self.output_dir_label.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
-        ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_output_dir).grid(row=1, column=2, padx=10, pady=10)
+        self.output_dir_label.grid(row=2, column=1, padx=10, pady=10, sticky="ew")
+        ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_output_dir).grid(row=2, column=2, padx=10, pady=10)
 
         # Detection Method
-        ctk.CTkLabel(main_frame, text="3. Metodo di Rilevamento:").grid(row=2, column=0, padx=10, pady=10, sticky="w")
+        ctk.CTkLabel(main_frame, text="3. Metodo di Rilevamento:").grid(row=3, column=0, padx=10, pady=10, sticky="w")
         self.segmented_button = ctk.CTkSegmentedButton(main_frame, values=["YOLO", "Hough Circle"], variable=self.detection_method, command=self.toggle_yolo_path)
-        self.segmented_button.grid(row=2, column=1, columnspan=2, padx=10, pady=10, sticky="w")
+        self.segmented_button.grid(row=3, column=1, columnspan=2, padx=10, pady=10, sticky="w")
         
         # YOLO Model Path (condizionale)
         self.yolo_label = ctk.CTkLabel(main_frame, text="4. Modello YOLO (.pt):")
         self.yolo_path_label = ctk.CTkLabel(main_frame, textvariable=self.yolo_model_path, text_color="gray")
         self.yolo_button = ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_yolo_model)
         
-        self.yolo_label.grid(row=3, column=0, padx=10, pady=10, sticky="w")
-        self.yolo_path_label.grid(row=3, column=1, padx=10, pady=10, sticky="ew")
-        self.yolo_button.grid(row=3, column=2, padx=10, pady=10)
+        self.yolo_label.grid(row=4, column=0, padx=10, pady=10, sticky="w")
+        self.yolo_path_label.grid(row=4, column=1, padx=10, pady=10, sticky="ew")
+        self.yolo_button.grid(row=4, column=2, padx=10, pady=10)
 
 
         # --- CONSOLE DI OUTPUT ---

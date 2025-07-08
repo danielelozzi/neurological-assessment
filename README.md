@@ -30,7 +30,14 @@ Prima di utilizzare questo software, è necessario acquisire e preparare i dati 
 3.  **Caricamento su Pupil Cloud**: Una volta completata la registrazione, caricare i dati sulla piattaforma **Pupil Cloud**.
 4.  **Enrichment con Marker Mapper**: All'interno di Pupil Cloud, avviare l'enrichment **Marker Mapper**. Questo processo analizza il video, rileva gli AprilTag e genera il file `surface_positions.csv`, che contiene le coordinate della superficie per ogni frame.
     * Guida all'utilizzo del Marker Mapper: [**Pupil Cloud Marker Mapper**](https://docs.pupil-labs.com/neon/pupil-cloud/enrichments/marker-mapper/#setup).
-5.  **Download dei Dati**: Al termine dell'enrichment, **scaricare l'intera cartella dei dati** dal progetto su Pupil Cloud. Questa cartella conterrà tutti i file necessari per l'analisi (`video.mp4`, `gaze.csv`, `surface_positions.csv`, `world_timestamps.csv`, etc.).
+5.  **Download dei Dati**: Al termine dell'enrichment, **scaricare l'intera cartella dei dati** dal progetto su Pupil Cloud. Questa cartella conterrà tutti i file necessari per l'analisi: 
+* **video.mp4**: *Il video registrato dalla camera di scena degli occhiali.*
+
+* **gaze.csv**: *Contiene i dati dettagliati dello sguardo, come le coordinate x/y normalizzate e i timestamp.
+*
+* **world_timestamps.csv**: *File che sincronizza ogni frame del video (frame_idx) con un timestamp preciso. È essenziale per allineare i dati dello sguardo con il video.*
+
+* **surface_positions.csv**: *Contiene le coordinate della superficie tracciata tramite gli AprilTag per ogni frame. Viene generato dall'enrichment "Marker Mapper" ed è cruciale per correggere la prospettiva e mappare lo sguardo sulla superficie corretta.*
 
 ---
 
