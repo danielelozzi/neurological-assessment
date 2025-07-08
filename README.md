@@ -100,9 +100,11 @@ Al termine dell'analisi, troverai i seguenti file nella cartella di Output che h
 * **`output_final_analysis_analysis.csv`**: I dati grezzi, frame per frame, calcolati dalla pipeline. 
 * **`cut_points.csv`**: I frame di inizio/fine dei segmenti "fast" e "slow". 
 * **`trimmed_video_fast.mp4` / `trimmed_video_slow.mp4`**: I clip video dei singoli protocolli. 
-* **Cartella `plots_and_heatmaps/`**: Contiene le visualizzazioni grafiche, incluse le heatmap dello sguardo e i grafici sulla pupillometria. 
+* **Cartella `plots_and_heatmaps/`**: Contiene le visualizzazioni grafiche, incluse le heatmap dello sguardo e i grafici sulla pupillometria.
 
-*If you use this script in your research or work, please cite the following publications:*
+## Citazione
+
+*Se utilizzi questo script nella tua ricerca o nel tuo lavoro, ti preghiamo di citare le seguenti pubblicazioni:*
 
 Lozzi, D.; Di Pompeo, I.; Marcaccio, M.; Ademaj, M.; Migliore, S.; Curcio, G. SPEED: A Graphical User Interface Software for Processing Eye Tracking Data. NeuroSci 2025, 6, 35. [https://doi.org/10.3390/neurosci6020035](https://doi.org/10.3390/neurosci6020035)
 
