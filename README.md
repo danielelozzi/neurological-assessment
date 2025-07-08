@@ -68,6 +68,8 @@ L'intera pipeline viene eseguita tramite l'interfaccia grafica.
     python main_gui.py
     ```
 
+    ![alt text](gui_cna.png)
+
 2.  **Configura l'Analisi**:
     Dalla finestra dell'applicazione, segui questi passaggi: 
 
