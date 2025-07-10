@@ -13,9 +13,9 @@ L'intero processo è gestito da un'unica **interfaccia grafica (GUI)** che orche
 
 L'obiettivo è automatizzare e standardizzare l'analisi delle performance visuo-motorie.  Partendo dai dati grezzi elaborati da Pupil Cloud, il software:
 1.  **Identifica e isola** i segmenti di interesse del test ("fast" e "slow"). 
-2.  **Rileva la palla** e ne traccia il movimento nel video. 
-3.  **Sincronizza i dati dello sguardo** con la posizione della palla. 
-4.  **Calcola metriche chiave** come la velocità dello sguardo, la velocità della palla e la percentuale di tempo in cui lo sguardo è correttamente sulla palla. 
+2.  **Rileva il cerchio** e ne traccia il movimento nel video. 
+3.  **Sincronizza i dati dello sguardo** con la posizione il cerchio. 
+4.  **Calcola metriche chiave** come la velocità dello sguardo, la velocità il cerchio e la percentuale di tempo in cui lo sguardo è correttamente sulil cerchio. 
 5.  **Produce un report Excel dettagliato** e visualizzazioni grafiche (heatmap, grafici pupillometrici) per un'analisi approfondita. 
 
 
@@ -96,7 +96,7 @@ L'intera pipeline viene eseguita tramite l'interfaccia grafica.
 Al termine dell'analisi, troverai i seguenti file nella cartella di Output che hai scelto:
 
 * **`final_report.xlsx`**: Il report quantitativo finale con tutte le metriche chiave, suddiviso per protocollo ("fast", "slow") e direzione del movimento. 
-* **`output_final_analysis.mp4`**: Un video di riferimento con le annotazioni del rilevamento della palla e dello sguardo, utile per una revisione qualitativa. 
+* **`output_final_analysis.mp4`**: Un video di riferimento con le annotazioni del rilevamento il cerchio e dello sguardo, utile per una revisione qualitativa. 
 * **`output_final_analysis_analysis.csv`**: I dati grezzi, frame per frame, calcolati dalla pipeline. 
 * **`cut_points.csv`**: I frame di inizio/fine dei segmenti "fast" e "slow". 
 * **`trimmed_video_fast.mp4` / `trimmed_video_slow.mp4`**: I clip video dei singoli protocolli. 
