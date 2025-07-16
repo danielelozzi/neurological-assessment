@@ -6,6 +6,7 @@ import os
 import threading
 import sys
 import webbrowser
+import traceback
 
 # Importa le funzioni main dagli altri script
 import trim_video
@@ -31,8 +32,8 @@ class MainApp(ctk.CTk):
         super().__init__()
 
         # --- CONFIGURAZIONE FINESTRA ---
-        self.title("LabSCoC - Strumento di Analisi dei dati dell'Assessment Neurologico Computerizzato (CNA)")
-        self.geometry("800x850") # Aumentata l'altezza per il nuovo testo
+        self.title("LabSCoC - Strumento di Analisi CNA")
+        self.geometry("800x850")
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
@@ -68,7 +69,7 @@ class MainApp(ctk.CTk):
         main_frame.grid_columnconfigure(1, weight=1)
 
         # Input Directory
-        ctk.CTkLabel(main_frame, text="1. Cartella Input (Dati Pupil Lab Neon con April Tag Mark Mapper):").grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        ctk.CTkLabel(main_frame, text="1. Cartella Input (Dati Pupil Cloud):").grid(row=0, column=0, padx=10, pady=10, sticky="w")
         self.input_dir_label = ctk.CTkLabel(main_frame, textvariable=self.input_dir, text_color="gray")
         self.input_dir_label.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
         ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_input_dir).grid(row=0, column=2, padx=10, pady=10)
@@ -78,11 +79,9 @@ class MainApp(ctk.CTk):
         input_info_frame.grid(row=1, column=0, columnspan=3, padx=15, pady=(0, 10), sticky="ew")
         
         info_text = (
-            "La cartella deve contenere i seguenti file scaricati da Pupil Cloud (dopo l'enrichment 'Marker Mapper'):\n"
-            "• video.mp4: La registrazione video della scena.\n"
-            "• gaze.csv: I dati grezzi dello sguardo.\n"
-            "• world_timestamps.csv: I timestamp per la sincronizzazione video-sguardo.\n"
-            "• surface_positions.csv: Le coordinate della superficie tracciata dagli AprilTag."
+            "La cartella deve contenere i file scaricati da Pupil Cloud dopo l'enrichment 'Marker Mapper':\n"
+            "• video.mp4, gaze.csv, world_timestamps.csv, surface_positions.csv\n"
+            "• Opzionale per pupillometria: pupil_positions.csv o 3d_eye_states.csv"
         )
         
         info_label = ctk.CTkLabel(input_info_frame, text=info_text, text_color="gray", justify="left", font=ctk.CTkFont(size=11))
@@ -96,7 +95,7 @@ class MainApp(ctk.CTk):
         ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_output_dir).grid(row=2, column=2, padx=10, pady=10)
 
         # Detection Method
-        ctk.CTkLabel(main_frame, text="3. Metodo di Rilevamento:").grid(row=3, column=0, padx=10, pady=10, sticky="w")
+        ctk.CTkLabel(main_frame, text="3. Metodo di Rilevamento Palla:").grid(row=3, column=0, padx=10, pady=10, sticky="w")
         self.segmented_button = ctk.CTkSegmentedButton(main_frame, values=["YOLO", "Hough Circle"], variable=self.detection_method, command=self.toggle_yolo_path)
         self.segmented_button.grid(row=3, column=1, columnspan=2, padx=10, pady=10, sticky="w")
         
@@ -130,7 +129,7 @@ class MainApp(ctk.CTk):
         self.check_inputs()
 
     def select_input_dir(self):
-        path = filedialog.askdirectory(title="Seleziona la cartella contenente i dati di Tobii")
+        path = filedialog.askdirectory(title="Seleziona la cartella di input da Pupil Cloud")
         if path:
             self.input_dir.set(path)
             self.check_inputs()
@@ -186,31 +185,32 @@ class MainApp(ctk.CTk):
         try:
             print("--- ANALISI AVVIATA ---\n")
             
-            # --- FASE 1: TRIM VIDEO ---
-            print("\n--- FASE 1: Taglio dei segmenti video ---\n")
+            # --- FASE 1: Trova i punti di taglio e salva cut_points.csv ---
+            print("\n--- FASE 1: Ricerca segmenti video (fast/slow) ---\n")
             args_trim = type('Args', (), {})()
             args_trim.input_video = os.path.join(self.input_dir.get(), 'video.mp4')
             args_trim.output_dir = self.output_dir.get()
+            # Non salviamo più i video tagliati qui, solo i punti di taglio
             trim_video.main(args_trim)
-            print("\n--- FASE 1 COMPLETATA ---\n")
-
-            # Aggiungi prospettiva correzione anche ai video tagliati "fast" e "slow" qui se necessario
+            print("\n--- FASE 1 COMPLETATA: Punti di taglio individuati. ---\n")
             
-            # --- FASE 2: DETECT AND SAVE BALL ---
-            print("\n--- FASE 2: Rilevamento palla e analisi sguardo ---\n")
+            # --- FASE 2: Rileva palla, corregge prospettiva e salva video finali ---
+            print("\n--- FASE 2: Correzione prospettiva, rilevamento e analisi sguardo ---\n")
             args_detect = type('Args', (), {})()
             args_detect.input_dir = self.input_dir.get()
             args_detect.output_dir = self.output_dir.get()
             args_detect.use_yolo = (self.detection_method.get() == "YOLO")
             args_detect.yolo_model = self.yolo_model_path.get()
             detect_and_save_ball.main(args_detect)
-            print("\n--- FASE 2 COMPLETATA ---\n")
+            print("\n--- FASE 2 COMPLETATA: Video finali e dati di analisi generati. ---\n")
 
-            # --- FASE 3: GENERATE REPORT ---
-            print("\n--- FASE 3: Generazione report finale ---\n")
+            # --- FASE 3: Genera il report finale e i grafici ---
+            print("\n--- FASE 3: Generazione report finale e validazione sequenze ---\n")
             args_report = type('Args', (), {})()
-            args_report.analysis_dir = self.output_dir.get()
-            args_report.output_dir = self.output_dir.get()
+            args_report.analysis_dir = self.output_dir.get() # Dove trovare i CSV di analisi
+            args_report.output_dir = self.output_dir.get() # Dove salvare il report
+            # La funzione di pupillometria deve cercare i file nella cartella di input originale
+            args_report.input_dir_for_pupil = self.input_dir.get()
             generate_report.main(args_report)
             print("\n--- FASE 3 COMPLETATA ---\n")
             
@@ -220,12 +220,10 @@ class MainApp(ctk.CTk):
         except Exception as e:
             print(f"\n====== ERRORE DURANTE L'ANALISI ======")
             print(f"Si è verificato un errore: {e}")
-            import traceback
             traceback.print_exc()
         finally:
             self.run_button.configure(state="normal")
-
-
+            
 if __name__ == "__main__":
     app = MainApp()
     app.mainloop()
