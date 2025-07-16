@@ -59,41 +59,84 @@ def calculate_movement_data(df):
     return df
 
 def add_pupil_data(df_main, base_dir):
+    """
+    Aggiunge i dati di pupillometria al dataframe principale.
+    Cerca i file necessari e unisce i dati basandosi sul timestamp più vicino.
+    È progettato per essere robusto a diverse nomenclature di colonne da Pupil Cloud.
+    """
     print("\n--- Tentativo di aggiungere dati di pupillometria ---")
     timestamps_path = os.path.join(base_dir, 'world_timestamps.csv') 
-    pupil_path = os.path.join(base_dir, 'pupil_positions.csv') # Potrebbe essere anche in pupil_positions.csv
+    pupil_path = os.path.join(base_dir, 'pupil_positions.csv')
     
+    # Se 'pupil_positions.csv' non esiste, prova con '3d_eye_states.csv'
     if not os.path.exists(pupil_path):
-        pupil_path = os.path.join(base_dir, '3d_eye_states.csv') # Fallback al file 3d
+        pupil_path = os.path.join(base_dir, '3d_eye_states.csv')
 
+    # Controlla se i file essenziali esistono
     if not os.path.exists(timestamps_path) or not os.path.exists(pupil_path):
         df_main[PUPIL_COL_NAME] = np.nan
-        print("Dati di pupillometria non trovati o incompleti.")
+        print("ATTENZIONE: File di pupillometria o 'world_timestamps.csv' non trovati. Salto l'aggiunta di questi dati.")
         return df_main
         
     df_timestamps = pd.read_csv(timestamps_path)
+    
+    # --- Logica robusta per rinominare le colonne di df_timestamps ---
+    # Cerca e rinomina la colonna del frame index
     if '# frame_idx' in df_timestamps.columns:
-        df_timestamps.rename(columns={'# frame_idx': 'frame', 'timestamp [s]': 'timestamp'}, inplace=True)
+        df_timestamps.rename(columns={'# frame_idx': 'frame'}, inplace=True)
+    elif 'frame_idx' in df_timestamps.columns:
+        df_timestamps.rename(columns={'frame_idx': 'frame'}, inplace=True)
+    elif 'world_index' in df_timestamps.columns:
+        df_timestamps.rename(columns={'world_index': 'frame'}, inplace=True)
     else:
-        df_timestamps.rename(columns={'frame_idx': 'frame', 'timestamp [s]': 'timestamp'}, inplace=True)
+        print("ERRORE CRITICO: Impossibile trovare una colonna per l'indice dei frame in 'world_timestamps.csv'. Impossibile procedere con l'aggiunta dei dati pupillometrici.")
+        df_main[PUPIL_COL_NAME] = np.nan
+        return df_main
 
+    # Cerca e rinomina la colonna del timestamp, standardizzando in secondi
+    if 'timestamp [s]' in df_timestamps.columns:
+        df_timestamps.rename(columns={'timestamp [s]': 'timestamp'}, inplace=True)
+    elif 'timestamp [ns]' in df_timestamps.columns:
+        df_timestamps['timestamp'] = df_timestamps['timestamp [ns]'] / 1e9  # Converte nanosecondi in secondi
+    else:
+        print("ERRORE CRITICO: Impossibile trovare una colonna per il timestamp in 'world_timestamps.csv'. Impossibile procedere con l'aggiunta dei dati pupillometrici.")
+        df_main[PUPIL_COL_NAME] = np.nan
+        return df_main
+    
+    # Ora il merge dovrebbe funzionare
     df_main = pd.merge(df_main, df_timestamps[['frame', 'timestamp']], on='frame', how='left')
     
     df_pupil = pd.read_csv(pupil_path)
     
-    # Il nome della colonna del diametro può variare
-    if 'diameter_3d' in df_pupil.columns: # Da 3d_eye_states
+    # Cerca la colonna del diametro pupillare
+    pupil_col_found = False
+    if 'diameter_3d' in df_pupil.columns:
         df_pupil[PUPIL_COL_NAME] = df_pupil['diameter_3d']
-    elif 'pupil diameter left [mm]' in df_pupil.columns: # Nome alternativo
+        pupil_col_found = True
+    elif 'pupil diameter left [mm]' in df_pupil.columns and 'pupil diameter right [mm]' in df_pupil.columns:
          df_pupil[PUPIL_COL_NAME] = df_pupil[['pupil diameter left [mm]', 'pupil diameter right [mm]']].mean(axis=1)
-    else: # Da pupil_positions
+         pupil_col_found = True
+    elif 'diameter' in df_pupil.columns:
         df_pupil[PUPIL_COL_NAME] = df_pupil['diameter']
+        pupil_col_found = True
 
+    if not pupil_col_found:
+        print(f"ATTENZIONE: Nessuna colonna valida per il diametro pupillare trovata in '{os.path.basename(pupil_path)}'.")
+        df_main[PUPIL_COL_NAME] = np.nan
+        return df_main
+
+    # Standardizza la colonna timestamp anche per i dati della pupilla
     if 'timestamp [s]' in df_pupil.columns:
         df_pupil.rename(columns={'timestamp [s]': 'timestamp'}, inplace=True)
-    
-    df_main = pd.merge_asof(df_main.sort_values('timestamp'), df_pupil[['timestamp', PUPIL_COL_NAME]].dropna().sort_values('timestamp'), on='timestamp', direction='nearest')
-    print("INFO: Dati di pupillometria aggiunti.")
+    elif 'timestamp [ns]' in df_pupil.columns:
+        df_pupil['timestamp'] = df_pupil['timestamp [ns]'] / 1e9
+
+    # Esegui il merge finale basato sul tempo
+    df_main = pd.merge_asof(df_main.sort_values('timestamp'), 
+                            df_pupil[['timestamp', PUPIL_COL_NAME]].dropna().sort_values('timestamp'), 
+                            on='timestamp', 
+                            direction='nearest')
+    print("INFO: Dati di pupillometria aggiunti con successo.")
     return df_main
 
 def generate_gaze_heatmap(df_gaze, width, height, output_path):
@@ -151,7 +194,6 @@ def main(args):
     df_main = pd.read_csv(analysis_path)
     
     df_main = calculate_movement_data(df_main)
-    # Per aggiungere i dati di pupillometria, dobbiamo passare la cartella di input originale
     df_main = add_pupil_data(df_main, args.input_dir_for_pupil) 
     
     df_cuts = pd.read_csv(cuts_path)
@@ -162,10 +204,9 @@ def main(args):
     output_excel_path = os.path.join(args.output_dir, 'final_report.xlsx')
     writer = pd.ExcelWriter(output_excel_path, engine='xlsxwriter')
     
-    # --- Sequenze attese per la validazione ---
-    # Nota: 'desrta' corretto in 'destra' -> 'right'
+    # --- Sequenze attese per la validazione (con l'ultimo 'up' rimosso da 'slow') ---
     expected_sequence_fast = ['right', 'left', 'right', 'up', 'down', 'up', 'right', 'left', 'right', 'up', 'down', 'up', 'right', 'left', 'right', 'up', 'down', 'up']
-    expected_sequence_slow = ['right', 'left', 'right', 'up', 'down', 'up', 'down', 'up', 'right', 'left', 'right', 'up', 'down', 'up', 'down', 'right', 'left', 'right', 'up', 'down', 'up']
+    expected_sequence_slow = ['right', 'left', 'right', 'up', 'down', 'up', 'down', 'up', 'right', 'left', 'right', 'up', 'down', 'up', 'down', 'right', 'left', 'right', 'up', 'down']
     expected_sequences = {'fast': expected_sequence_fast, 'slow': expected_sequence_slow}
     
     for _, cut_row in df_cuts.iterrows():
@@ -174,7 +215,6 @@ def main(args):
         df_segment = df_main[(df_main['frame'] >= start_frame) & (df_main['frame'] <= end_frame)].copy()
         if df_segment.empty: continue
 
-        # Ottieni le dimensioni dal video corretto corrispondente
         video_path = os.path.join(args.output_dir, f'final_video_{segment_name}.mp4')
         vid_width, vid_height = get_video_dimensions(video_path)
 
@@ -183,12 +223,24 @@ def main(args):
         
         if df_center_out.empty:
             print(f"ATTENZIONE: Nessun movimento 'center-out' trovato in '{segment_name}'.")
-            validate_movement_sequence(df_center_out, expected_sequences.get(segment_name, []), segment_name) # Valida anche se vuoto
+            validate_movement_sequence(df_center_out, expected_sequences.get(segment_name, []), segment_name)
             continue
         
         df_center_out['direction_simple'] = df_center_out['direction'].str.split('_').str[-1]
         
-        # --- VALIDAZIONE SEQUENZA ---
+        # --- MODIFICA: Escludi l'ultimo movimento 'up' per il segmento 'slow' ---
+        if segment_name == 'slow' and not df_center_out.empty:
+            print("INFO: Controllo per rimuovere l'ultimo movimento 'up' dal segmento 'slow'...")
+            last_trial_id = df_center_out['trial_id'].max()
+            last_trial_direction = df_center_out[df_center_out['trial_id'] == last_trial_id]['direction_simple'].iloc[0]
+            
+            if last_trial_direction == 'up':
+                print(f"INFO: L'ultimo trial (ID: {last_trial_id}) è 'up' e sarà ESCLUSO dall'analisi.")
+                df_center_out = df_center_out[df_center_out['trial_id'] != last_trial_id].copy()
+            else:
+                print("INFO: L'ultimo trial non è 'up', nessuna esclusione necessaria.")
+        # --- FINE MODIFICA ---
+
         validate_movement_sequence(df_center_out, expected_sequences.get(segment_name, []), segment_name)
         
         agg_dict_base = {'avg_gaze_in_box_perc': ('gaze_in_box', 'mean'), 'avg_gaze_speed': ('gaze_speed', 'mean'), 'trial_count': ('trial_id', 'nunique')}
@@ -202,9 +254,14 @@ def main(args):
         summary_by_direction['avg_gaze_in_box_perc'] *= 100
         summary_by_direction['total_segment_gaze_in_box_perc'] = total_gaze_in_box_perc
         
-        summary_by_direction.to_excel(writer, sheet_name=f"Riepilogo_{segment_name}", index=False)
-        df_center_out.to_excel(writer, sheet_name=f"Dettagli_{segment_name}", index=False)
-        print(f"Statistiche per '{segment_name}' salvate.")
+        # Controlla se il dataframe non è vuoto prima di salvare
+        if not summary_by_direction.empty:
+            summary_by_direction.to_excel(writer, sheet_name=f"Riepilogo_{segment_name}", index=False)
+            df_center_out.to_excel(writer, sheet_name=f"Dettagli_{segment_name}", index=False)
+            print(f"Statistiche per '{segment_name}' salvate.")
+        else:
+            print(f"ATTENZIONE: Nessun dato da salvare per il riepilogo di '{segment_name}'.")
+
         
         for direction in summary_by_direction['direction_simple']:
             df_direction = df_center_out[df_center_out['direction_simple'] == direction]
@@ -213,3 +270,4 @@ def main(args):
     
     writer.close()
     print(f"\n--- Report Excel Finale Salvato in: {output_excel_path} ---")
+

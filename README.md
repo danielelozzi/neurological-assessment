@@ -1,5 +1,5 @@
 # Strumento di Analisi dei dati dell'Assessment Neurologico Computerizzato (CNA)
-### LabSCoC (Laboratorio di Scienze Cognitive e del Comportamento) e Dr. Daniele Lozzi
+### LabSCoC (Laboratorio di Scienze Cognitive e del Comportamento)
 
 - **Sito Web Lab**: [labscoc.wordpress.com](https://labscoc.wordpress.com/)
 - **Repository GitHub**: [github.com/danielelozzi/neurological-assessment](https://github.com/danielelozzi/neurological-assessment)
@@ -16,7 +16,7 @@ L'obiettivo è automatizzare e standardizzare l'analisi delle performance visuo-
 1.  **Identifica i Segmenti di Test**: Utilizzando il riconoscimento ottico dei caratteri (OCR), lo script individua automaticamente i frame di inizio e fine dei segmenti di interesse del test ("fast" e "slow").
 2.  **Correzione Prospettica e Taglio**: Per ogni segmento, applica una correzione della prospettiva basata sugli AprilTag, isolando e raddrizzando solo l'area dello schermo.
 3.  **Rilevamento e Sincronizzazione**: Rileva il cerchio e ne traccia il movimento all'interno dei video corretti, sincronizzando la posizione dello sguardo (gaze) per ogni frame.
-4.  **Calcolo delle Metriche**: Calcola metriche chiave come la velocità dello sguardo, la velocità del cerchio, la percentuale di tempo in cui lo sguardo è correttamente sul cerchio e analizza la sequenza dei movimenti.
+4.  **Calcolo delle Metriche e Pulizia Dati**: Calcola metriche chiave come la velocità dello sguardo, la velocità del cerchio e la percentuale di tempo in cui lo sguardo è correttamente sul cerchio. Esegue anche una validazione della sequenza dei movimenti e, specificamente per il protocollo "slow", **esclude l'ultimo movimento "up" dall'analisi** per allinearsi al disegno sperimentale.
 5.  **Generazione dell'Output**: Produce video finali con overlay per la revisione qualitativa, un report Excel dettagliato per l'analisi quantitativa e visualizzazioni grafiche (heatmap, grafici pupillometrici).
 
 ---
