@@ -85,7 +85,7 @@ L'intera pipeline viene eseguita tramite l'interfaccia grafica.
 
 3.  **Avvia l'Analisi**:
     Una volta configurati tutti i percorsi, il pulsante **"Avvia Analisi Completa"** diventerà cliccabile.  Premilo per iniziare il processo. 
-
+    
 4.  **Monitora il Progresso**:
     Puoi seguire ogni fase dell'elaborazione nel riquadro **"Log di Analisi"** in tempo reale. 
 

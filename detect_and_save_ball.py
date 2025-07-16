@@ -137,6 +137,8 @@ def main(args):
             print(f"Errore prospettiva al frame {frame_count}: {e}")
             frame_count += 1
             continue
+
+        warped_frame = cv2.convertScaleAbs(warped_frame)
         
         if out is None:
             out = cv2.VideoWriter(output_video_path, fourcc, fps, (output_width, output_height))

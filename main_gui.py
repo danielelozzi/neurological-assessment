@@ -193,6 +193,8 @@ class MainApp(ctk.CTk):
             args_trim.output_dir = self.output_dir.get()
             trim_video.main(args_trim)
             print("\n--- FASE 1 COMPLETATA ---\n")
+
+            # Aggiungi prospettiva correzione anche ai video tagliati "fast" e "slow" qui se necessario
             
             # --- FASE 2: DETECT AND SAVE BALL ---
             print("\n--- FASE 2: Rilevamento palla e analisi sguardo ---\n")
