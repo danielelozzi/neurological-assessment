@@ -90,7 +90,7 @@ Al termine dell'analisi, troverai i seguenti file nella cartella di Output che h
 
 * `final_report.xlsx`: Il report quantitativo finale con tutte le metriche chiave, suddiviso per protocollo ("fast", "slow") e direzione del movimento.
 * `final_video_fast.mp4` / `final_video_slow.mp4`: I **video finali** dei segmenti "fast" e "slow". Questi video sono già **ritagliati sulla superficie dello schermo, corretti nella prospettiva e includono l'overlay dello sguardo** per una revisione qualitativa.
-* `output_final_analysis_analysis.csv`: I dati grezzi, frame per frame, calcolati dalla pipeline (posizione della palla, posizione dello sguardo, ecc.).
+* `output_final_analysis_analysis.csv`: I dati grezzi, frame per frame, calcolati dalla pipeline (posizione del cerchio, posizione dello sguardo, ecc.).
 * `cut_points.csv`: I frame di inizio/fine dei segmenti "fast" e "slow", calcolati tramite OCR.
 * **Cartella `plots_and_heatmaps/`**: Contiene le visualizzazioni grafiche, incluse le heatmap dello sguardo e i grafici sulla pupillometria (se i dati erano disponibili).
 
