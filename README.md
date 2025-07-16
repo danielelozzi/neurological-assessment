@@ -4,7 +4,7 @@
 - **Sito Web Lab**: [labscoc.wordpress.com](https://labscoc.wordpress.com/)
 - **Repository GitHub**: [github.com/danielelozzi/neurological-assessment](https://github.com/danielelozzi/neurological-assessment)
 
-Questo repository contiene una pipeline software completa per l'analisi del movimento oculare in relazione al movimento di una palla.
+Questo repository contiene una pipeline software completa per l'analisi del movimento oculare in relazione al movimento di un cerchio.
 
 L'intero processo è gestito da un'unica **interfaccia grafica (GUI)** che orchestra l'elaborazione dei dati, dal taglio dei video grezzi fino alla generazione di un report statistico finale.
 
