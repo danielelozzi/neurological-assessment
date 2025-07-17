@@ -67,6 +67,8 @@ pip install customtkinter opencv-python pandas numpy matplotlib seaborn scipy ea
 
 3. **Avvia l'Analisi** con il pulsante principale.
 
+![GUI - Setup and Core Analysis](gui.png)
+
 ## 📊 Output del Progetto
 
 * **`final_report.xlsx`**: Report Excel con metriche dettagliate e di riepilogo. Se attivata, include la colonna `excursion_success` (True/False) nei fogli di dettaglio e la percentuale di successo (`excursion_success_perc`) nei riepiloghi.

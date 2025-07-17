@@ -1,6 +1,6 @@
 import tkinter
 import customtkinter as ctk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 import os
 import threading
 import sys
@@ -53,7 +53,7 @@ class MainApp(ctk.CTk):
         header_frame.grid_columnconfigure(0, weight=1)
         title_label = ctk.CTkLabel(header_frame, text="Strumento di Analisi Neuro-Visuale", font=ctk.CTkFont(size=20, weight="bold"))
         title_label.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="w")
-        lab_link = ctk.CTkLabel(header_frame, text="LabSCoC - Laboratorio di Scienze Cognitive e del Comportamento", text_color="#5DADE2", cursor="hand2")
+        lab_link = ctk.CTkLabel(header_frame, text="LabSCoC - Laboratorio di Scienze Cognitive e del Comportamento e Dr. Daniele Lozzi", text_color="#5DADE2", cursor="hand2")
         lab_link.grid(row=1, column=0, padx=10, pady=(0, 5), sticky="w")
         lab_link.bind("<Button-1>", lambda e: webbrowser.open_new("https://labscoc.wordpress.com/"))
         github_link = ctk.CTkLabel(header_frame, text="Pagina GitHub del Progetto", text_color="#5DADE2", cursor="hand2")
@@ -74,7 +74,7 @@ class MainApp(ctk.CTk):
         ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_output_dir).grid(row=1, column=2, padx=10, pady=10)
 
         # Detection Method
-        ctk.CTkLabel(main_frame, text="3. Metodo Rilevamento Cerchio:").grid(row=2, column=0, padx=10, pady=10, sticky="w")
+        ctk.CTkLabel(main_frame, text="3. Metodo Rilevamento Palla:").grid(row=2, column=0, padx=10, pady=10, sticky="w")
         ctk.CTkSegmentedButton(main_frame, values=["YOLO", "Hough Circle"], variable=self.detection_method, command=self.toggle_yolo_path).grid(row=2, column=1, columnspan=2, padx=10, pady=10, sticky="w")
         
         # YOLO Model Path
@@ -102,11 +102,17 @@ class MainApp(ctk.CTk):
         self.check_inputs()
 
     def select_input_dir(self):
-        path = filedialog.askdirectory(title="Seleziona cartella input"); self.input_dir.set(path) if path else None; self.check_inputs()
+        path = filedialog.askdirectory(title="Seleziona cartella input")
+        if path: self.input_dir.set(path)
+        self.check_inputs()
     def select_output_dir(self):
-        path = filedialog.askdirectory(title="Seleziona cartella output"); self.output_dir.set(path) if path else None; self.check_inputs()
+        path = filedialog.askdirectory(title="Seleziona cartella output")
+        if path: self.output_dir.set(path)
+        self.check_inputs()
     def select_yolo_model(self):
-        path = filedialog.askopenfilename(title="Seleziona modello YOLO", filetypes=[("YOLO Model", "*.pt")]); self.yolo_model_path.set(path) if path else None; self.check_inputs()
+        path = filedialog.askopenfilename(title="Seleziona modello YOLO", filetypes=[("YOLO Model", "*.pt")])
+        if path: self.yolo_model_path.set(path)
+        self.check_inputs()
             
     def toggle_yolo_path(self, value):
         if value == "YOLO": self.yolo_label.grid(); self.yolo_path_label.grid(); self.yolo_button.grid()
@@ -114,31 +120,71 @@ class MainApp(ctk.CTk):
         self.check_inputs()
 
     def check_inputs(self):
-        input_ok = os.path.isdir(self.input_dir.get()); output_ok = os.path.isdir(self.output_dir.get())
+        input_ok = os.path.isdir(self.input_dir.get())
+        output_ok = os.path.isdir(self.output_dir.get())
         yolo_ok = (self.detection_method.get() != "YOLO") or os.path.isfile(self.yolo_model_path.get())
         self.run_button.configure(state="normal" if input_ok and output_ok and yolo_ok else "disabled")
 
     def start_analysis_thread(self):
-        self.run_button.configure(state="disabled"); self.console.configure(state="normal"); self.console.delete("1.0", tkinter.END); self.console.configure(state="disabled")
+        self.run_button.configure(state="disabled")
+        self.console.configure(state="normal")
+        self.console.delete("1.0", tkinter.END)
+        self.console.configure(state="disabled")
         threading.Thread(target=self.run_full_analysis, daemon=True).start()
 
     def run_full_analysis(self):
+        """Orchestra l'esecuzione sequenziale degli script di analisi in un thread separato."""
+        success = False
+        error_message = ""
         try:
             print("--- ANALISI AVVIATA ---\n")
+            
             args_trim = type('Args', (), {'input_video': os.path.join(self.input_dir.get(), 'video.mp4'), 'output_dir': self.output_dir.get()})
             trim_video.main(args_trim)
             
             args_detect = type('Args', (), {'input_dir': self.input_dir.get(), 'output_dir': self.output_dir.get(), 'use_yolo': (self.detection_method.get() == "YOLO"), 'yolo_model': self.yolo_model_path.get()})
             detect_and_save_ball.main(args_detect)
 
-            args_report = type('Args', (), {'analysis_dir': self.output_dir.get(), 'output_dir': self.output_dir.get(), 'input_dir_for_pupil': self.input_dir.get(), 'run_fragmentation_analysis': self.run_fragmentation_analysis.get(), 'run_excursion_analysis': self.run_excursion_analysis.get()})
+            args_report = type('Args', (), {
+                'analysis_dir': self.output_dir.get(), 
+                'output_dir': self.output_dir.get(), 
+                'input_dir_for_pupil': self.input_dir.get(), 
+                'run_fragmentation_analysis': self.run_fragmentation_analysis.get(), 
+                'run_excursion_analysis': self.run_excursion_analysis.get()
+            })
             generate_report.main(args_report)
             
             print("\n====== ANALISI COMPLETATA CON SUCCESSO ======")
+            success = True
+
         except Exception as e:
-            print(f"\n====== ERRORE DURANTE L'ANALISI ======\n{e}"); traceback.print_exc()
+            error_message = str(e)
+            print(f"\n====== ERRORE DURANTE L'ANALISI ======\n{e}")
+            traceback.print_exc()
         finally:
-            self.run_button.configure(state="normal")
+            # --- MODIFICA ---
+            # Chiama la funzione di finalizzazione nel thread principale della GUI
+            self.after(0, self.analysis_finished, success, error_message)
+
+    # --- NUOVA FUNZIONE ---
+    def analysis_finished(self, success, error_message):
+        """
+        Viene eseguito nel thread principale della GUI al termine dell'analisi.
+        Riabilita il pulsante e mostra un messaggio di completamento o errore.
+        """
+        self.run_button.configure(state="normal")
+        if success:
+            messagebox.showinfo(
+                "Analisi Completata",
+                f"L'analisi è terminata con successo.\n\nI risultati sono stati salvati in:\n{self.output_dir.get()}"
+            )
+        else:
+            messagebox.showerror(
+                "Errore di Analisi",
+                "Si è verificato un errore durante l'analisi.\n\n"
+                f"Dettagli: {error_message}\n\n"
+                "Controllare il log nella finestra principale per ulteriori informazioni."
+            )
             
 if __name__ == "__main__":
     MainApp().mainloop()
