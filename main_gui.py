@@ -1,4 +1,3 @@
-# main_gui.py
 import tkinter
 import customtkinter as ctk
 from tkinter import filedialog
@@ -81,7 +80,7 @@ class MainApp(ctk.CTk):
         info_text = (
             "La cartella deve contenere i file scaricati da Pupil Cloud dopo l'enrichment 'Marker Mapper':\n"
             "• video.mp4, gaze.csv, world_timestamps.csv, surface_positions.csv\n"
-            "• Opzionale per pupillometria: pupil_positions.csv o 3d_eye_states.csv"
+            "• Opzionale per pupillometria: 3d_eye_states.csv"
         )
         
         info_label = ctk.CTkLabel(input_info_frame, text=info_text, text_color="gray", justify="left", font=ctk.CTkFont(size=11))
@@ -190,7 +189,6 @@ class MainApp(ctk.CTk):
             args_trim = type('Args', (), {})()
             args_trim.input_video = os.path.join(self.input_dir.get(), 'video.mp4')
             args_trim.output_dir = self.output_dir.get()
-            # Non salviamo più i video tagliati qui, solo i punti di taglio
             trim_video.main(args_trim)
             print("\n--- FASE 1 COMPLETATA: Punti di taglio individuati. ---\n")
             
@@ -207,9 +205,8 @@ class MainApp(ctk.CTk):
             # --- FASE 3: Genera il report finale e i grafici ---
             print("\n--- FASE 3: Generazione report finale e validazione sequenze ---\n")
             args_report = type('Args', (), {})()
-            args_report.analysis_dir = self.output_dir.get() # Dove trovare i CSV di analisi
-            args_report.output_dir = self.output_dir.get() # Dove salvare il report
-            # La funzione di pupillometria deve cercare i file nella cartella di input originale
+            args_report.analysis_dir = self.output_dir.get()
+            args_report.output_dir = self.output_dir.get()
             args_report.input_dir_for_pupil = self.input_dir.get()
             generate_report.main(args_report)
             print("\n--- FASE 3 COMPLETATA ---\n")

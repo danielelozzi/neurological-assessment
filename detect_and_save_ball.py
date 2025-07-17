@@ -5,6 +5,22 @@ import os
 import sys
 from ultralytics import YOLO
 
+def get_zone(x, y):
+    """Determina in quale zona dello schermo si trova una coordinata normalizzata."""
+    if x is None or y is None:
+        return 'other'
+    if 0.40 < x < 0.60 and 0.40 < y < 0.60:
+        return 'center'
+    if y <= 0.40:
+        return 'up'
+    if y >= 0.60:
+        return 'down'
+    if x <= 0.40:
+        return 'left'
+    if x >= 0.60:
+        return 'right'
+    return 'other'
+
 def detect_ball_yolo(frame, model, sports_ball_class_id):
     results = model(frame, verbose=False)
     best_detection = None
@@ -42,7 +58,6 @@ def detect_ball_hough(frame):
 def align_timestamps_and_filter(world_timestamps_path, gaze_data_path):
     print("Allineamento dei timestamp...")
     world_timestamps = pd.read_csv(world_timestamps_path)
-    # Assicuriamoci che la colonna 'world_index' esista. In alcuni export di Pupil Cloud potrebbe mancare.
     if '# frame_idx' in world_timestamps.columns:
         world_timestamps.rename(columns={'# frame_idx': 'world_index'}, inplace=True)
     elif 'world_index' not in world_timestamps.columns:
@@ -52,12 +67,11 @@ def align_timestamps_and_filter(world_timestamps_path, gaze_data_path):
     gaze.rename(columns={'gaze position on surface x [normalized]': 'gaze_x_norm', 'gaze position on surface y [normalized]': 'gaze_y_norm'}, inplace=True)
     gaze_on_surface = gaze[gaze['gaze detected on surface'] == True].copy()
     
-    # Rinominare colonne timestamp per chiarezza
     if 'timestamp [ns]' in world_timestamps.columns:
          world_timestamps.rename(columns={'timestamp [ns]': 'world_timestamp_ns'}, inplace=True)
     if 'timestamp [ns]' in gaze_on_surface.columns:
         gaze_on_surface.rename(columns={'timestamp [ns]': 'gaze_timestamp_ns'}, inplace=True)
-    elif 'timestamp [s]' in gaze_on_surface.columns: # Fallback a secondi se ns non è presente
+    elif 'timestamp [s]' in gaze_on_surface.columns:
         gaze_on_surface['gaze_timestamp_ns'] = (gaze_on_surface['timestamp [s]'] * 1e9).astype('int64')
 
     world_timestamps['world_timestamp_dt'] = pd.to_datetime(world_timestamps['world_timestamp_ns'], unit='ns')
@@ -76,7 +90,6 @@ def align_timestamps_and_filter(world_timestamps_path, gaze_data_path):
 
 def main(args):
     BBOX_PADDING_FACTOR = 1.20
-    # Percorsi file di input
     world_timestamps_path = os.path.join(args.input_dir, 'world_timestamps.csv')
     gaze_csv_path = os.path.join(args.input_dir, 'gaze.csv')
     surface_positions_path = os.path.join(args.input_dir, 'surface_positions.csv')
@@ -95,7 +108,6 @@ def main(args):
         
     df_cuts = pd.read_csv(cut_points_path)
 
-    # Inizializzazione modello YOLO (se usato)
     model, sports_ball_class_id = None, None
     if args.use_yolo:
         if not os.path.exists(args.yolo_model): raise FileNotFoundError(f"Modello YOLO non trovato: {args.yolo_model}")
@@ -116,7 +128,6 @@ def main(args):
     os.makedirs(args.output_dir, exist_ok=True)
     analysis_results = []
     
-    # --- CICLO SUI SEGMENTI (fast, slow) ---
     for _, cut_row in df_cuts.iterrows():
         segment_name = cut_row['segment_name']
         start_frame = int(cut_row['start_frame'])
@@ -126,11 +137,14 @@ def main(args):
 
         cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
         frame_count = start_frame
-        processed_frame_count = 0
         
         output_video_path = os.path.join(args.output_dir, f"final_video_{segment_name}.mp4")
         out = None
         output_width, output_height = None, None
+
+        in_movement = False
+        current_movement_direction = ""
+        last_known_zone = 'center'
 
         while frame_count < end_frame:
             ret, original_frame = cap.read()
@@ -138,7 +152,6 @@ def main(args):
                 print(f"ATTENZIONE: Interruzione anticipata del video prima del frame {end_frame}.")
                 break
             
-            # Unisci dati di sguardo e superficie per il frame corrente
             current_frame_gaze_info = aligned_gaze_data[aligned_gaze_data['world_index'] == frame_count]
             crop_info = surface_positions[surface_positions['world_index'] == frame_count]
 
@@ -148,11 +161,9 @@ def main(args):
             
             gaze_info = current_frame_gaze_info.iloc[0]
 
-            # Calcolo della trasformazione prospettica
             try:
                 src_pts = np.float32([[crop_info[f'{corner} x [px]'].iloc[0], crop_info[f'{corner} y [px]'].iloc[0]] for corner in ['tl', 'tr', 'br', 'bl']])
                 
-                # Inizializza dimensioni output al primo frame valido
                 if output_width is None:
                     output_width = int(max(np.linalg.norm(src_pts[0] - src_pts[1]), np.linalg.norm(src_pts[3] - src_pts[2])))
                     output_height = int(max(np.linalg.norm(src_pts[0] - src_pts[3]), np.linalg.norm(src_pts[1] - src_pts[2])))
@@ -167,38 +178,57 @@ def main(args):
                 frame_count += 1
                 continue
             
-            # Inizializza il VideoWriter dopo aver calcolato le dimensioni
             if out is None:
                 out = cv2.VideoWriter(output_video_path, fourcc, fps, (output_width, output_height))
             
-            # Rilevamento palla
             if args.use_yolo:
                 ball_bbox, norm_ball_x, norm_ball_y = detect_ball_yolo(warped_frame, model, sports_ball_class_id)
             else:
                 ball_bbox, norm_ball_x, norm_ball_y = detect_ball_hough(warped_frame)
 
-            # Analisi e disegno overlay
-            gaze_in_box_status, gaze_color = False, (0, 0, 255) # Rosso di default
+            current_zone = get_zone(norm_ball_x, norm_ball_y)
+
+            if not in_movement and last_known_zone == 'center' and current_zone not in ['center', 'other']:
+                in_movement = True
+                current_movement_direction = current_zone.upper()
+            elif in_movement and current_zone == 'center':
+                in_movement = False
+                current_movement_direction = ""
+            
+            last_known_zone = current_zone
+            
+            if current_movement_direction:
+                cv2.putText(
+                    warped_frame, 
+                    current_movement_direction,
+                    (50, 70),
+                    cv2.FONT_HERSHEY_SIMPLEX, 
+                    2,
+                    (0, 255, 255),
+                    3,
+                    cv2.LINE_AA
+                )
+
+            gaze_in_box_status, gaze_color = False, (0, 0, 255)
             if ball_bbox is not None:
                 x, y, w, h = ball_bbox
                 w_new, h_new = w * BBOX_PADDING_FACTOR, h * BBOX_PADDING_FACTOR
                 x_new, y_new = x - (w_new - w) / 2, y - (h_new - h) / 2
                 enlarged_bbox = (int(x_new), int(y_new), int(w_new), int(h_new))
-                cv2.rectangle(warped_frame, (enlarged_bbox[0], enlarged_bbox[1]), (enlarged_bbox[0] + enlarged_bbox[2], enlarged_bbox[1] + enlarged_bbox[3]), (255, 0, 0), 2) # Blu
+                cv2.rectangle(warped_frame, (enlarged_bbox[0], enlarged_bbox[1]), (enlarged_bbox[0] + enlarged_bbox[2], enlarged_bbox[1] + enlarged_bbox[3]), (255, 0, 0), 2)
                 
                 ex, ey, ew, eh = enlarged_bbox
                 if pd.notna(gaze_info['gaze_x_norm']) and pd.notna(gaze_info['gaze_y_norm']):
                     gaze_px, gaze_py = int(gaze_info['gaze_x_norm'] * output_width), int(gaze_info['gaze_y_norm'] * output_height)
                     if (ex <= gaze_px <= ex + ew) and (ey <= gaze_py <= ey + eh):
-                        gaze_in_box_status, gaze_color = True, (0, 255, 255) # Giallo ciano
+                        gaze_in_box_status, gaze_color = True, (0, 255, 255)
 
             if pd.notna(gaze_info['gaze_x_norm']) and pd.notna(gaze_info['gaze_y_norm']):
                 gaze_px, gaze_py = int(gaze_info['gaze_x_norm'] * output_width), int(gaze_info['gaze_y_norm'] * output_height)
                 cv2.circle(warped_frame, (gaze_px, gaze_py), 10, gaze_color, -1)
             
-            # Salva risultati analisi
             result_data = {
-                'frame': frame_count, # Usiamo il frame originale come riferimento
+                'frame': frame_count,
                 'ball_center_x_norm': norm_ball_x, 
                 'ball_center_y_norm': norm_ball_y, 
                 'gaze_x_norm': gaze_info['gaze_x_norm'], 
@@ -208,7 +238,6 @@ def main(args):
             analysis_results.append(result_data)
             
             out.write(warped_frame)
-            processed_frame_count += 1
             frame_count += 1
         
         if out:
