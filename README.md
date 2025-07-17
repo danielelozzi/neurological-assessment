@@ -6,6 +6,8 @@
 
 * **Repository GitHub**: [github.com/danielelozzi/neurological-assessment](https://github.com/danielelozzi/neurological-assessment)
 
+* **Concettualizzazione**: [Dr. Massimo Marano](https://scholar.google.it/citations?user=ugxMWiQAAAAJ&hl=it)
+
 Questo repository contiene una pipeline software completa per l'analisi del movimento oculare e della pupillometria in relazione al movimento di un cerchio su uno schermo. L'intero processo è gestito da un'unica **interfaccia grafica (GUI)** che orchestra l'elaborazione dei dati, dal taglio dei video grezzi fino alla generazione di un report statistico e visuale completo.
 
 ## 🎯 Obiettivo del Software
