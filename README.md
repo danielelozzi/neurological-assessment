@@ -39,7 +39,7 @@ Prima di utilizzare questo software, è necessario acquisire e preparare i dati 
     * `gaze.csv`: Dati dettagliati dello sguardo.
     * `world_timestamps.csv`: Dati di sincronizzazione dei frame.
     * `surface_positions.csv`: Coordinate della superficie tracciata.
-    * **Per analisi pupillometrica**: `3d_eye_states.csv`. L'inclusione di uno di questi file è **essenziale** per calcolare le metriche relative al diametro pupillare.
+    * **Per analisi pupillometrica**: `3d_eye_states.csv`. L'inclusione di questo file è **essenziale** per calcolare le metriche relative al diametro pupillare.
 
 ---
 
