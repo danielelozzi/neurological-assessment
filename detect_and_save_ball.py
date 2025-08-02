@@ -52,8 +52,10 @@ def detect_ball_hough(frame):
         h_frame, w_frame, _ = frame.shape
         norm_ball_x = x / w_frame
         norm_ball_y = y / h_frame
-        return ball_bbox, norm_ball_x, norm_ball_y
-    return None, None, None
+        norm_ball_w = (r * 2) / w_frame
+        norm_ball_h = (r * 2) / h_frame
+        return ball_bbox, norm_ball_x, norm_ball_y, norm_ball_w, norm_ball_h
+    return None, None, None, None, None
 
 def align_timestamps_and_filter(world_timestamps_path, gaze_data_path):
     print("Allineamento dei timestamp...")
@@ -182,9 +184,9 @@ def main(args):
                 out = cv2.VideoWriter(output_video_path, fourcc, fps, (output_width, output_height))
             
             if args.use_yolo:
-                ball_bbox, norm_ball_x, norm_ball_y = detect_ball_yolo(warped_frame, model, sports_ball_class_id)
+                ball_bbox, norm_ball_x, norm_ball_y, norm_ball_w, norm_ball_h = detect_ball_yolo(warped_frame, model, sports_ball_class_id)
             else:
-                ball_bbox, norm_ball_x, norm_ball_y = detect_ball_hough(warped_frame)
+                ball_bbox, norm_ball_x
 
             current_zone = get_zone(norm_ball_x, norm_ball_y)
 
@@ -227,10 +229,20 @@ def main(args):
                 gaze_px, gaze_py = int(gaze_info['gaze_x_norm'] * output_width), int(gaze_info['gaze_y_norm'] * output_height)
                 cv2.circle(warped_frame, (gaze_px, gaze_py), 10, gaze_color, -1)
             
+            # Calcoliamo larghezza e altezza normalizzate solo se il pallino è stato trovato
+            norm_ball_w, norm_ball_h = np.nan, np.nan
+            if ball_bbox is not None:
+                _, _, w, h = ball_bbox
+                if output_width > 0 and output_height > 0:
+                    norm_ball_w = w / output_width
+                    norm_ball_h = h / output_height
+            
             result_data = {
                 'frame': frame_count,
                 'ball_center_x_norm': norm_ball_x, 
                 'ball_center_y_norm': norm_ball_y, 
+                'ball_w_norm': norm_ball_w, # <-- NUOVA COLONNA
+                'ball_h_norm': norm_ball_h, # <-- NUOVA COLONNA
                 'gaze_x_norm': gaze_info['gaze_x_norm'], 
                 'gaze_y_norm': gaze_info['gaze_y_norm'], 
                 'gaze_in_box': gaze_in_box_status

@@ -116,26 +116,58 @@ def generate_fragmentation_plots(df_analysis, df_cuts, output_dir):
         plt.savefig(output_path, dpi=150); plt.close(fig)
         print(f"INFO: Grafico 'Frammentazione' salvato in: {output_path}")
 
-# --- NUOVA FUNZIONE: CALCOLO ESCURSIONE ---
+# --- NUOVA FUNZIONE AGGIORNATA: CALCOLO ESCURSIONE BASATO SUL BORDO DEL PALLINO ---
 def calculate_excursion(df_input):
-    print("INFO: Calcolo metrica 'Escursione'...")
+    print("INFO: Calcolo metrica 'Escursione' in base al bordo del pallino...")
     df = df_input.copy()
-    if df.empty or 'trial_id' not in df.columns: return df
-    
+    # Assicuriamoci che le colonne necessarie esistano, altrimenti esci
+    required_cols = ['trial_id', 'direction_simple', 'gaze_x_norm', 'gaze_y_norm', 
+                     'ball_center_x_norm', 'ball_center_y_norm', 'ball_w_norm', 'ball_h_norm']
+    if not all(col in df.columns for col in required_cols):
+        print("ATTENZIONE: Colonne necessarie per l'analisi di escursione mancanti. Analisi saltata.")
+        df['excursion_success'] = np.nan
+        return df
+
     results = {}
     # Itera su ogni trial (gruppo di righe con lo stesso trial_id > 0)
     for trial_id, group in df[df['trial_id'] > 0].groupby('trial_id'):
-        direction = group['direction_simple'].iloc[0]
         gaze_reached_target = False
-        if direction == 'right' and not group['gaze_x_norm'].isnull().all(): gaze_reached_target = group['gaze_x_norm'].max() >= 0.60
-        elif direction == 'left' and not group['gaze_x_norm'].isnull().all(): gaze_reached_target = group['gaze_x_norm'].min() <= 0.40
-        elif direction == 'down' and not group['gaze_y_norm'].isnull().all(): gaze_reached_target = group['gaze_y_norm'].max() >= 0.60
-        elif direction == 'up' and not group['gaze_y_norm'].isnull().all(): gaze_reached_target = group['gaze_y_norm'].min() <= 0.40
+        # Itera su ogni frame all'interno del singolo trial
+        for _, row in group.iterrows():
+            # Salta il frame se un dato essenziale è mancante
+            if pd.isna(row['gaze_x_norm']) or pd.isna(row['ball_center_x_norm']) or pd.isna(row['ball_w_norm']):
+                continue
+
+            direction = row['direction_simple']
+            radius_x = row['ball_w_norm'] / 2
+            radius_y = row['ball_h_norm'] / 2
+
+            # Calcola la posizione del bordo del pallino più vicino al centro dello schermo
+            if direction == 'right':
+                # Bordo sinistro del pallino. Lo sguardo deve superarlo (andare a destra).
+                edge_threshold = row['ball_center_x_norm'] - radius_x
+                if row['gaze_x_norm'] >= edge_threshold: gaze_reached_target = True; break
+            elif direction == 'left':
+                # Bordo destro del pallino. Lo sguardo deve superarlo (andare a sinistra).
+                edge_threshold = row['ball_center_x_norm'] + radius_x
+                if row['gaze_x_norm'] <= edge_threshold: gaze_reached_target = True; break
+            elif direction == 'down':
+                # Bordo superiore del pallino. Lo sguardo deve superarlo (andare in basso).
+                edge_threshold = row['ball_center_y_norm'] - radius_y
+                if row['gaze_y_norm'] >= edge_threshold: gaze_reached_target = True; break
+            elif direction == 'up':
+                # Bordo inferiore del pallino. Lo sguardo deve superarlo (andare in alto).
+                edge_threshold = row['ball_center_y_norm'] + radius_y
+                if row['gaze_y_norm'] <= edge_threshold: gaze_reached_target = True; break
+        
+        # Salva il risultato (True/False) per l'intero trial
         results[trial_id] = gaze_reached_target
     
     # Mappa i risultati booleani al DataFrame originale
     df['excursion_success'] = df['trial_id'].map(results)
+    print("INFO: Calcolo 'Escursione' completato.")
     return df
+
 
 def main(args):
     analysis_path = os.path.join(args.analysis_dir, 'output_final_analysis_analysis.csv')
