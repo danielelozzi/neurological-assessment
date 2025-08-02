@@ -37,9 +37,8 @@ def calculate_movement_data(df):
     df.drop(columns=['zone'], inplace=True); print(f"INFO: Calcolo completato. Trovati {trial_counter} trial."); return df
 
 def add_pupil_data(df_main, base_dir):
-    # (Questa funzione rimane invariata rispetto all'ultima versione)
     print("\n--- Analisi Dati Pupillometrici ---")
-    timestamps_path = os.path.join(base_dir, 'world_timestamps.csv') 
+    timestamps_path = os.path.join(base_dir, 'world_timestamps.csv')
     pupil_path_main = os.path.join(base_dir, 'pupil_positions.csv')
     pupil_path_fallback = os.path.join(base_dir, '3d_eye_states.csv')
     pupil_path_to_use = next((p for p in [pupil_path_main, pupil_path_fallback] if os.path.exists(p)), None)
@@ -72,7 +71,6 @@ def generate_gaze_heatmap(df_gaze, width, height, output_path):
     plt.savefig(output_path, bbox_inches='tight', pad_inches=0, transparent=True); plt.close()
 
 def generate_pupillometry_plot(df_trials, pupil_col, output_path):
-    # (Questa funzione rimane invariata)
     if pupil_col not in df_trials.columns or df_trials[pupil_col].isnull().all(): return
     aligned_trials, normalized_time = [], np.linspace(0, 100, 100)
     for _, group in df_trials[df_trials['trial_id'] > 0].groupby('trial_id'):
@@ -95,7 +93,6 @@ def validate_movement_sequence(df, seq, name):
     print(f"Rilevata ({len(actual_seq)}): {actual_seq}")
     print("RISULTATO: ✔️ Corrispondenza Perfetta!" if actual_seq == seq else "RISULTATO: ❌ ATTENZIONE: Non corrisponde.")
 
-# --- FUNZIONE RINOMINATA E AGGIORNATA ---
 def generate_fragmentation_plots(df_analysis, df_cuts, output_dir):
     print("\n--- Generazione Grafici 'Frammentazione' ---")
     for _, cut_row in df_cuts.iterrows():
@@ -116,25 +113,26 @@ def generate_fragmentation_plots(df_analysis, df_cuts, output_dir):
         plt.savefig(output_path, dpi=150); plt.close(fig)
         print(f"INFO: Grafico 'Frammentazione' salvato in: {output_path}")
 
-# --- NUOVA FUNZIONE AGGIORNATA: CALCOLO ESCURSIONE BASATO SUL BORDO DEL PALLINO ---
 def calculate_excursion(df_input):
-    print("INFO: Calcolo metrica 'Escursione' in base al bordo del pallino...")
+    print("INFO: Calcolo metriche di 'Escursione' (percentuale frame e successo trial)...")
     df = df_input.copy()
-    # Assicuriamoci che le colonne necessarie esistano, altrimenti esci
-    required_cols = ['trial_id', 'direction_simple', 'gaze_x_norm', 'gaze_y_norm', 
+    required_cols = ['trial_id', 'direction_simple', 'gaze_x_norm', 'gaze_y_norm',
                      'ball_center_x_norm', 'ball_center_y_norm', 'ball_w_norm', 'ball_h_norm']
     if not all(col in df.columns for col in required_cols):
         print("ATTENZIONE: Colonne necessarie per l'analisi di escursione mancanti. Analisi saltata.")
         df['excursion_success'] = np.nan
+        df['excursion_perc_frames'] = np.nan
         return df
 
-    results = {}
-    # Itera su ogni trial (gruppo di righe con lo stesso trial_id > 0)
+    results_bool = {}
+    results_perc = {}
+    # Itera su ogni trial
     for trial_id, group in df[df['trial_id'] > 0].groupby('trial_id'):
-        gaze_reached_target = False
-        # Itera su ogni frame all'interno del singolo trial
+        successful_frames_count = 0
+        total_frames_in_trial = len(group)
+
+        # Itera su ogni frame del trial per contare i successi
         for _, row in group.iterrows():
-            # Salta il frame se un dato essenziale è mancante
             if pd.isna(row['gaze_x_norm']) or pd.isna(row['ball_center_x_norm']) or pd.isna(row['ball_w_norm']):
                 continue
 
@@ -142,43 +140,46 @@ def calculate_excursion(df_input):
             radius_x = row['ball_w_norm'] / 2
             radius_y = row['ball_h_norm'] / 2
 
-            # Calcola la posizione del bordo del pallino più vicino al centro dello schermo
+            is_success_in_frame = False
             if direction == 'right':
-                # Bordo sinistro del pallino. Lo sguardo deve superarlo (andare a destra).
                 edge_threshold = row['ball_center_x_norm'] - radius_x
-                if row['gaze_x_norm'] >= edge_threshold: gaze_reached_target = True; break
+                if row['gaze_x_norm'] >= edge_threshold: is_success_in_frame = True
             elif direction == 'left':
-                # Bordo destro del pallino. Lo sguardo deve superarlo (andare a sinistra).
                 edge_threshold = row['ball_center_x_norm'] + radius_x
-                if row['gaze_x_norm'] <= edge_threshold: gaze_reached_target = True; break
+                if row['gaze_x_norm'] <= edge_threshold: is_success_in_frame = True
             elif direction == 'down':
-                # Bordo superiore del pallino. Lo sguardo deve superarlo (andare in basso).
                 edge_threshold = row['ball_center_y_norm'] - radius_y
-                if row['gaze_y_norm'] >= edge_threshold: gaze_reached_target = True; break
+                if row['gaze_y_norm'] >= edge_threshold: is_success_in_frame = True
             elif direction == 'up':
-                # Bordo inferiore del pallino. Lo sguardo deve superarlo (andare in alto).
                 edge_threshold = row['ball_center_y_norm'] + radius_y
-                if row['gaze_y_norm'] <= edge_threshold: gaze_reached_target = True; break
-        
-        # Salva il risultato (True/False) per l'intero trial
-        results[trial_id] = gaze_reached_target
-    
-    # Mappa i risultati booleani al DataFrame originale
-    df['excursion_success'] = df['trial_id'].map(results)
+                if row['gaze_y_norm'] <= edge_threshold: is_success_in_frame = True
+
+            if is_success_in_frame:
+                successful_frames_count += 1
+
+        # Calcola i risultati per l'intero trial
+        results_bool[trial_id] = successful_frames_count > 0
+        if total_frames_in_trial > 0:
+            results_perc[trial_id] = (successful_frames_count / total_frames_in_trial) * 100
+        else:
+            results_perc[trial_id] = 0
+
+    # Mappa i risultati al DataFrame creando le due nuove colonne
+    df['excursion_success'] = df['trial_id'].map(results_bool)
+    df['excursion_perc_frames'] = df['trial_id'].map(results_perc)
     print("INFO: Calcolo 'Escursione' completato.")
     return df
-
 
 def main(args):
     analysis_path = os.path.join(args.analysis_dir, 'output_final_analysis_analysis.csv')
     cuts_path = os.path.join(args.analysis_dir, 'cut_points.csv')
     df_main = pd.read_csv(analysis_path); df_cuts = pd.read_csv(cuts_path)
     df_main = calculate_movement_data(df_main)
-    df_main = add_pupil_data(df_main, args.input_dir_for_pupil) 
-    
+    df_main = add_pupil_data(df_main, args.input_dir_for_pupil)
+
     plot_dir = os.path.join(args.output_dir, "plots_and_heatmaps"); os.makedirs(plot_dir, exist_ok=True)
     writer = pd.ExcelWriter(os.path.join(args.output_dir, 'final_report.xlsx'), engine='xlsxwriter')
-    
+
     expected_sequences = {'fast': ['right','left','right','up','down','up']*3, 'slow': ['right','left','right','up','down','up','down','up','right','left','right','up','down','up','down','right','left','right','up','down']}
     general_summary_list = []
 
@@ -190,32 +191,34 @@ def main(args):
         df_center_out = df_segment[df_segment['direction'].str.startswith('center_to_', na=False)].copy()
         if df_center_out.empty: continue
         df_center_out['direction_simple'] = df_center_out['direction'].str.split('_').str[-1]
-        
+
         if segment_name == 'slow' and df_center_out['trial_id'].max() is not np.nan:
             last_trial_id = df_center_out['trial_id'].max()
             if df_center_out[df_center_out['trial_id'] == last_trial_id]['direction_simple'].iloc[0] == 'up':
                 df_center_out = df_center_out[df_center_out['trial_id'] != last_trial_id]
 
         validate_movement_sequence(df_center_out, expected_sequences.get(segment_name, []), segment_name)
-        
-        # --- INTEGRAZIONE ESCURSIONE ---
+
         if args.run_excursion_analysis: df_center_out = calculate_excursion(df_center_out)
-        
+
         agg_dict = {'avg_gaze_in_box_perc': ('gaze_in_box', 'mean'), 'avg_gaze_speed': ('gaze_speed', 'mean'), 'trial_count': ('trial_id', 'nunique')}
         if PUPIL_COL_NAME in df_center_out: agg_dict['avg_pupil_diameter'] = (PUPIL_COL_NAME, 'mean')
-        if args.run_excursion_analysis: agg_dict['excursion_success_perc'] = ('excursion_success', 'mean')
-            
+        if args.run_excursion_analysis:
+            agg_dict['excursion_success_perc'] = ('excursion_success', 'mean')
+            agg_dict['avg_excursion_perc_frames'] = ('excursion_perc_frames', 'mean')
+
         summary = df_center_out.groupby('direction_simple').agg(**agg_dict).reset_index()
         summary['avg_gaze_in_box_perc'] *= 100
         if 'excursion_success_perc' in summary: summary['excursion_success_perc'] *= 100
 
         summary.to_excel(writer, sheet_name=f"Riepilogo_{segment_name}", index=False)
         df_center_out.to_excel(writer, sheet_name=f"Dettagli_{segment_name}", index=False)
-        
-        # Riepilogo generale
+
         gen_sum = {'segmento': segment_name, 'gaze_in_box_perc_totale': df_center_out['gaze_in_box'].mean()*100, 'velocita_sguardo_media': df_center_out['gaze_speed'].mean(), 'numero_trial_validi': df_center_out['trial_id'].nunique()}
         if PUPIL_COL_NAME in df_center_out: gen_sum['diametro_pupillare_medio'] = df_center_out[PUPIL_COL_NAME].mean()
-        if args.run_excursion_analysis: gen_sum['escursione_successo_perc'] = df_center_out['excursion_success'].mean() * 100
+        if args.run_excursion_analysis:
+            gen_sum['escursione_successo_perc'] = df_center_out['excursion_success'].mean() * 100
+            gen_sum['escursione_perc_frames_media'] = df_center_out['excursion_perc_frames'].mean()
         general_summary_list.append(gen_sum)
 
         for direction in summary['direction_simple'].unique():
@@ -225,5 +228,5 @@ def main(args):
 
     if general_summary_list: pd.DataFrame(general_summary_list).to_excel(writer, sheet_name="Riepilogo_Generale", index=False)
     writer.close()
-    
+
     if args.run_fragmentation_analysis: generate_fragmentation_plots(df_main, df_cuts, plot_dir)
