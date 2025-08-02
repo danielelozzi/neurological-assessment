@@ -1,0 +1,10 @@
+customtkinter
+opencv-python
+pandas
+numpy
+matplotlib
+seaborn
+scipy
+easyocr
+ultralytics
+xlsxwriter

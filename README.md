@@ -40,15 +40,21 @@ L'obiettivo è automatizzare e standardizzare l'analisi delle performance visuo-
 
 ## 🛠️ Installazione
 
-È fortemente consigliato creare un ambiente virtuale.
+Per eseguire il software, è necessario installare le dipendenze in un ambiente virtuale. Sono forniti i passaggi per `conda` (Anaconda/Miniconda).
 
 
-1. Crea e attiva l'ambiente virtuale
-python -m venv venv
-source venv/bin/activate  # Su Windows: venv\Scripts\activate
+### Anaconda/Miniconda
 
-2. Installa le librerie
-pip install customtkinter opencv-python pandas numpy matplotlib seaborn scipy easyocr ultralytics xlsxwriter
+1.  **Crea e attiva l'ambiente conda** (sostituisci `cna-env` con il nome che preferisci):
+    ```bash
+    conda create --name cna-env python=3.10 -y
+    conda activate cna-env
+    ```
+
+2.  **Installa le librerie** usando `pip` all'interno dell'ambiente conda:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
 
 ## 🚀 Utilizzo
