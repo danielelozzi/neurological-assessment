@@ -6,6 +6,7 @@ import threading
 import sys
 import webbrowser
 import traceback
+import torch # --- AGGIUNTO: Import per il controllo GPU ---
 
 # Importa le funzioni main dagli altri script
 import trim_video
@@ -37,15 +38,12 @@ class MainApp(ctk.CTk):
         ctk.set_default_color_theme("blue")
 
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=1) # Modificato per far espandere la console
 
-        # --- VARIABILI DI STATO ---
-        self.input_dir = ctk.StringVar()
-        self.output_dir = ctk.StringVar()
-        self.yolo_model_path = ctk.StringVar()
-        self.detection_method = ctk.StringVar(value="YOLO")
-        self.run_fragmentation_analysis = ctk.BooleanVar(value=False)
-        self.run_excursion_analysis = ctk.BooleanVar(value=False)
+        # --- FRAME PRINCIPALE DEI CONTROLLI ---
+        main_frame = ctk.CTkFrame(self)
+        main_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
+        main_frame.grid_columnconfigure(1, weight=1)
 
         # --- HEADER E BRANDING ---
         header_frame = ctk.CTkFrame(self)
@@ -60,10 +58,13 @@ class MainApp(ctk.CTk):
         github_link.grid(row=2, column=0, padx=10, pady=(0, 10), sticky="w")
         github_link.bind("<Button-1>", lambda e: webbrowser.open_new("https://github.com/danielelozzi/neurological-assessment"))
 
-        # --- FRAME PRINCIPALE DEI CONTROLLI ---
-        main_frame = ctk.CTkFrame(self)
-        main_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
-        main_frame.grid_columnconfigure(1, weight=1)
+        # --- VARIABILI DI STATO ---
+        self.input_dir = ctk.StringVar()
+        self.output_dir = ctk.StringVar()
+        self.yolo_model_path = ctk.StringVar()
+        self.detection_method = ctk.StringVar(value="YOLO")
+        self.run_fragmentation_analysis = ctk.BooleanVar(value=False)
+        self.run_excursion_analysis = ctk.BooleanVar(value=False)
 
         # Input / Output
         ctk.CTkLabel(main_frame, text="1. Cartella Input (Dati Pupil Cloud):").grid(row=0, column=0, padx=10, pady=10, sticky="w")
@@ -91,32 +92,65 @@ class MainApp(ctk.CTk):
         ctk.CTkCheckBox(main_frame, text="Calcola metrica 'Escursione' (completamento traiettoria)", variable=self.run_excursion_analysis, onvalue=True, offvalue=False).grid(row=5, column=1, columnspan=2, padx=10, pady=10, sticky="w")
 
         # --- CONSOLE E PULSANTE AVVIO ---
-        console_frame = ctk.CTkFrame(self); console_frame.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
+        console_frame = ctk.CTkFrame(self)
+        console_frame.grid(row=2, column=0, padx=20, pady=10, sticky="nsew")
         console_frame.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(console_frame, text="Log di Analisi:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(5,0))
-        self.console = ctk.CTkTextbox(console_frame, height=200, state="disabled"); self.console.pack(fill="x", expand=True, padx=10, pady=10)
-        sys.stdout = StdoutRedirector(self.console); sys.stderr = StdoutRedirector(self.console)
+        console_frame.grid_rowconfigure(1, weight=1)
+        ctk.CTkLabel(console_frame, text="Log di Analisi:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky="w", padx=10, pady=(5,0))
+        self.console = ctk.CTkTextbox(console_frame, state="disabled")
+        self.console.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        sys.stdout = StdoutRedirector(self.console)
+        sys.stderr = StdoutRedirector(self.console)
+        
         self.run_button = ctk.CTkButton(self, text="Avvia Analisi Completa", command=self.start_analysis_thread, height=40, font=ctk.CTkFont(size=14, weight="bold"), state="disabled")
         self.run_button.grid(row=3, column=0, padx=20, pady=20, sticky="ew")
         
+        # --- AGGIUNTO: CONTROLLO ACCELERAZIONE HARDWARE (GPU) ---
+        self.check_hardware_acceleration()
+        
         self.check_inputs()
+
+    def check_hardware_acceleration(self):
+        """Controlla la disponibilità di GPU e stampa lo stato nel log."""
+        print("--- CONTROLLO ACCELERAZIONE HARDWARE ---")
+        try:
+            if torch.cuda.is_available():
+                print(f"✅ Trovata GPU compatibile con CUDA: {torch.cuda.get_device_name(0)}")
+                print("Le analisi di IA (YOLO, OCR) saranno accelerate.\n")
+            elif torch.backends.mps.is_available():
+                print("✅ Trovato backend 'Metal' di Apple per l'accelerazione GPU.")
+                print("Le analisi di IA (YOLO, OCR) saranno accelerate.\n")
+            else:
+                print("⚠️ ATTENZIONE: Nessuna GPU accelerata trovata (né CUDA né Apple Metal).")
+                print("Le analisi di IA verranno eseguite sulla CPU, risultando molto più lente.\n")
+        except Exception as e:
+            print(f"ERRORE durante il controllo hardware: {e}\n")
+
 
     def select_input_dir(self):
         path = filedialog.askdirectory(title="Seleziona cartella input")
         if path: self.input_dir.set(path)
         self.check_inputs()
+
     def select_output_dir(self):
         path = filedialog.askdirectory(title="Seleziona cartella output")
         if path: self.output_dir.set(path)
         self.check_inputs()
+
     def select_yolo_model(self):
         path = filedialog.askopenfilename(title="Seleziona modello YOLO", filetypes=[("YOLO Model", "*.pt")])
         if path: self.yolo_model_path.set(path)
         self.check_inputs()
             
     def toggle_yolo_path(self, value):
-        if value == "YOLO": self.yolo_label.grid(); self.yolo_path_label.grid(); self.yolo_button.grid()
-        else: self.yolo_label.grid_remove(); self.yolo_path_label.grid_remove(); self.yolo_button.grid_remove()
+        if value == "YOLO":
+            self.yolo_label.grid()
+            self.yolo_path_label.grid()
+            self.yolo_button.grid()
+        else:
+            self.yolo_label.grid_remove()
+            self.yolo_path_label.grid_remove()
+            self.yolo_button.grid_remove()
         self.check_inputs()
 
     def check_inputs(self):
@@ -127,9 +161,16 @@ class MainApp(ctk.CTk):
 
     def start_analysis_thread(self):
         self.run_button.configure(state="disabled")
+        # --- MODIFICA: Pulisce la console mantenendo il check hardware ---
         self.console.configure(state="normal")
+        # Ottiene il contenuto attuale (che include il check hardware)
+        content = self.console.get("1.0", tkinter.END)
+        # Ricostruisce la console con il check e un separatore
         self.console.delete("1.0", tkinter.END)
+        self.console.insert(tkinter.END, content)
+        self.console.insert(tkinter.END, "----------------------------------------\n\n")
         self.console.configure(state="disabled")
+        
         threading.Thread(target=self.run_full_analysis, daemon=True).start()
 
     def run_full_analysis(self):
@@ -139,10 +180,20 @@ class MainApp(ctk.CTk):
         try:
             print("--- ANALISI AVVIATA ---\n")
             
-            args_trim = type('Args', (), {'input_video': os.path.join(self.input_dir.get(), 'video.mp4'), 'output_dir': self.output_dir.get()})
+            # --- Creazione oggetti 'args' per passare i parametri ---
+            # Questo simula il passaggio di argomenti da riga di comando
+            args_trim = type('Args', (), {
+                'input_video': os.path.join(self.input_dir.get(), 'video.mp4'), 
+                'output_dir': self.output_dir.get()
+            })
             trim_video.main(args_trim)
             
-            args_detect = type('Args', (), {'input_dir': self.input_dir.get(), 'output_dir': self.output_dir.get(), 'use_yolo': (self.detection_method.get() == "YOLO"), 'yolo_model': self.yolo_model_path.get()})
+            args_detect = type('Args', (), {
+                'input_dir': self.input_dir.get(), 
+                'output_dir': self.output_dir.get(), 
+                'use_yolo': (self.detection_method.get() == "YOLO"), 
+                'yolo_model': self.yolo_model_path.get()
+            })
             detect_and_save_ball.main(args_detect)
 
             args_report = type('Args', (), {
@@ -162,11 +213,8 @@ class MainApp(ctk.CTk):
             print(f"\n====== ERRORE DURANTE L'ANALISI ======\n{e}")
             traceback.print_exc()
         finally:
-            # --- MODIFICA ---
-            # Chiama la funzione di finalizzazione nel thread principale della GUI
             self.after(0, self.analysis_finished, success, error_message)
 
-    # --- NUOVA FUNZIONE ---
     def analysis_finished(self, success, error_message):
         """
         Viene eseguito nel thread principale della GUI al termine dell'analisi.
@@ -187,4 +235,5 @@ class MainApp(ctk.CTk):
             )
             
 if __name__ == "__main__":
-    MainApp().mainloop()
+    app = MainApp()
+    app.mainloop()
