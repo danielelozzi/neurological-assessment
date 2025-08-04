@@ -276,6 +276,17 @@ class MainApp(ctk.CTk):
         else:
             messagebox.showerror("Errore di Analisi", f"Si è verificato un errore.\n\nDettagli: {error_message}\n\nControllare il log per info.")
 
+    def start_analysis_thread(self):
+        """
+        Avvia l'analisi in un thread separato per non bloccare la GUI.
+        Disabilita il pulsante di avvio per prevenire esecuzioni multiple.
+        """
+        self.run_button.configure(state="disabled") # Disabilita il pulsante
+        # Crea il thread che eseguirà la funzione di analisi
+        analysis_thread = threading.Thread(target=self.run_full_analysis)
+        analysis_thread.daemon = True  # Permette alla GUI di chiudersi anche se il thread è in esecuzione
+        analysis_thread.start() # Avvia il thread
+
     def check_hardware_acceleration(self):
         print("--- CONTROLLO ACCELERAZIONE HARDWARE ---")
         try:
