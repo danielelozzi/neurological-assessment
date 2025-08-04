@@ -4,42 +4,52 @@ import os
 import sys
 import csv
 
-# --- MODIFICA RADICALE: Funzione potenziata con pre-elaborazione dell'immagine ---
+# --- NUOVO: Funzioni di supporto per diverse strategie di pre-elaborazione ---
+def preprocess_adaptive_gaussian(roi):
+    """Pipeline 1: Thresholding adattivo standard, ottimo per luce non uniforme."""
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    return cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+
+def preprocess_median_blur(roi):
+    """Pipeline 2: Usa Median Blur, più efficace contro il rumore 'sale e pepe'."""
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.medianBlur(gray, 5) # Efficace per rumore a puntini
+    return cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+
+def preprocess_simple_binary(roi):
+    """Pipeline 3: Thresholding binario semplice, per scenari ad alto contrasto."""
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    return thresh
+
+# --- MODIFICA: La funzione ora prova in sequenza diverse strategie ---
 def detect_text_ocr(frame, reader, text_to_find='1'):
     """
-    Usa EasyOCR su un'immagine pre-elaborata per massimizzare l'accuratezza
-    in video di bassa qualità, concentrandosi sul centro dello schermo.
+    Prova diverse pipeline di pre-elaborazione per massimizzare il rilevamento
+    del testo in video di bassa qualità.
     """
-    # 1. Definiamo una Zona di Interesse (ROI) al centro del frame
     h, w, _ = frame.shape
-    roi_x_start = int(w * 0.25)
-    roi_y_start = int(h * 0.25)
-    roi_x_end = int(w * 0.75)
-    roi_y_end = int(h * 0.75)
-    
+    roi_x_start, roi_y_start = int(w * 0.25), int(h * 0.25)
+    roi_x_end, roi_y_end = int(w * 0.75), int(h * 0.75)
     roi = frame[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
 
-    # 2. Applichiamo filtri per "pulire" l'immagine
-    # Convertiamo in scala di grigi
-    gray_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-    
-    # Applichiamo una sfumatura per ridurre il rumore
-    blurred = cv2.GaussianBlur(gray_roi, (5, 5), 0)
-    
-    # Applichiamo un thresholding adattivo per far risaltare il testo
-    # È molto efficace in condizioni di luce non uniformi
-    processed_roi = cv2.adaptiveThreshold(blurred, 255, 
-                                          cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                                          cv2.THRESH_BINARY_INV, 11, 2)
+    # Lista delle strategie da provare in ordine di efficacia generale
+    preprocessing_pipelines = [
+        preprocess_adaptive_gaussian,
+        preprocess_median_blur,
+        preprocess_simple_binary,
+    ]
 
-    # 3. Eseguiamo l'OCR sull'immagine elaborata
-    results = reader.readtext(processed_roi, allowlist='0123456789', detail=0)
+    for pipeline in preprocessing_pipelines:
+        processed_roi = pipeline(roi)
+        results = reader.readtext(processed_roi, allowlist='0123456789', detail=0)
+        for text in results:
+            if text_to_find in text:
+                # Se il testo viene trovato, interrompiamo e ritorniamo successo
+                return True
     
-    # Controlliamo se il testo cercato è nei risultati
-    for text in results:
-        if text_to_find in text:
-            return True
-            
+    # Se nessuna strategia ha funzionato, ritorniamo fallimento
     return False
 
 def main(args):
@@ -58,9 +68,10 @@ def main(args):
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     if total_frames == 0:
         raise ValueError("Errore: Impossibile leggere la durata del video.")
-    stop_frame_threshold = total_frames // 3
+    
+    # --- MODIFICA: Limite di ricerca ridotto a 1/4 del video ---
+    stop_frame_threshold = total_frames // 4
     print(f"Video di {total_frames} frame. Il processo si interromperà se l'innesco non viene trovato entro il frame {stop_frame_threshold}.")
-
 
     try:
         reader = easyocr.Reader(['en'], gpu=True)
@@ -91,7 +102,7 @@ def main(args):
 
         if not one_confirmed and frame_number > stop_frame_threshold:
             cap.release()
-            raise RuntimeError(f"ERRORE: Innesco non trovato dopo aver analizzato 1/3 del video (frame {frame_number}). Processo interrotto.")
+            raise RuntimeError(f"ERRORE: Innesco non trovato dopo aver analizzato 1/4 del video (frame {frame_number}). Processo interrotto.")
 
         if frame_number % 30 == 0:
             print(f"Scansione in corso... Frame: {frame_number}/{total_frames}", end='\r')
@@ -109,7 +120,6 @@ def main(args):
             
             if detections_found >= detection_goal:
                 one_confirmed = True
-                # --- CORREZIONE QUI ---
                 print(f"\n{' ' * 70}\rRilevamento del numero '1' confermato intorno al frame {frame_number}. Attesa della sua scomparsa...")
         
         elif one_confirmed and not is_one_present:

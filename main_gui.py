@@ -6,7 +6,7 @@ import threading
 import sys
 import webbrowser
 import traceback
-import torch # --- AGGIUNTO: Import per il controllo GPU ---
+import torch 
 
 # Importa le funzioni main dagli altri script
 import trim_video
@@ -38,7 +38,7 @@ class MainApp(ctk.CTk):
         ctk.set_default_color_theme("blue")
 
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1) # Modificato per far espandere la console
+        self.grid_rowconfigure(2, weight=1) 
 
         # --- FRAME PRINCIPALE DEI CONTROLLI ---
         main_frame = ctk.CTkFrame(self)
@@ -65,14 +65,25 @@ class MainApp(ctk.CTk):
         self.detection_method = ctk.StringVar(value="YOLO")
         self.run_fragmentation_analysis = ctk.BooleanVar(value=False)
         self.run_excursion_analysis = ctk.BooleanVar(value=False)
+        
+        # --- MODIFICA: Aggiunto un "trace" per chiamare check_inputs ogni volta che il testo cambia ---
+        self.input_dir.trace_add("write", self.check_inputs_callback)
+        self.output_dir.trace_add("write", self.check_inputs_callback)
+        self.yolo_model_path.trace_add("write", self.check_inputs_callback)
+
 
         # Input / Output
         ctk.CTkLabel(main_frame, text="1. Cartella Input (Dati Pupil Cloud):").grid(row=0, column=0, padx=10, pady=10, sticky="w")
-        ctk.CTkLabel(main_frame, textvariable=self.input_dir, text_color="gray").grid(row=0, column=1, padx=10, pady=10, sticky="ew")
-        ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_input_dir).grid(row=0, column=2, padx=10, pady=10)
+        # --- MODIFICA: Sostituita CTkLabel con CTkEntry ---
+        self.input_entry = ctk.CTkEntry(main_frame, textvariable=self.input_dir, placeholder_text="Inserisci o seleziona un percorso...")
+        self.input_entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_input_dir, width=100).grid(row=0, column=2, padx=10, pady=10)
+        
         ctk.CTkLabel(main_frame, text="2. Cartella Output:").grid(row=1, column=0, padx=10, pady=10, sticky="w")
-        ctk.CTkLabel(main_frame, textvariable=self.output_dir, text_color="gray").grid(row=1, column=1, padx=10, pady=10, sticky="ew")
-        ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_output_dir).grid(row=1, column=2, padx=10, pady=10)
+        # --- MODIFICA: Sostituita CTkLabel con CTkEntry ---
+        self.output_entry = ctk.CTkEntry(main_frame, textvariable=self.output_dir, placeholder_text="Inserisci o seleziona un percorso...")
+        self.output_entry.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+        ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_output_dir, width=100).grid(row=1, column=2, padx=10, pady=10)
 
         # Detection Method
         ctk.CTkLabel(main_frame, text="3. Metodo Rilevamento Palla:").grid(row=2, column=0, padx=10, pady=10, sticky="w")
@@ -80,10 +91,11 @@ class MainApp(ctk.CTk):
         
         # YOLO Model Path
         self.yolo_label = ctk.CTkLabel(main_frame, text="4. Modello YOLO (.pt):")
-        self.yolo_path_label = ctk.CTkLabel(main_frame, textvariable=self.yolo_model_path, text_color="gray")
-        self.yolo_button = ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_yolo_model)
+        # --- MODIFICA: Sostituita CTkLabel con CTkEntry ---
+        self.yolo_path_entry = ctk.CTkEntry(main_frame, textvariable=self.yolo_model_path, placeholder_text="Richiesto se si usa YOLO...")
+        self.yolo_button = ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_yolo_model, width=100)
         self.yolo_label.grid(row=3, column=0, padx=10, pady=10, sticky="w")
-        self.yolo_path_label.grid(row=3, column=1, padx=10, pady=10, sticky="ew")
+        self.yolo_path_entry.grid(row=3, column=1, padx=10, pady=10, sticky="ew")
         self.yolo_button.grid(row=3, column=2, padx=10, pady=10)
 
         # --- ANALISI AGGIUNTIVE ---
@@ -105,9 +117,7 @@ class MainApp(ctk.CTk):
         self.run_button = ctk.CTkButton(self, text="Avvia Analisi Completa", command=self.start_analysis_thread, height=40, font=ctk.CTkFont(size=14, weight="bold"), state="disabled")
         self.run_button.grid(row=3, column=0, padx=20, pady=20, sticky="ew")
         
-        # --- AGGIUNTO: CONTROLLO ACCELERAZIONE HARDWARE (GPU) ---
         self.check_hardware_acceleration()
-        
         self.check_inputs()
 
     def check_hardware_acceleration(self):
@@ -122,53 +132,59 @@ class MainApp(ctk.CTk):
                 print("Le analisi di IA (YOLO, OCR) saranno accelerate.\n")
             else:
                 print("⚠️ ATTENZIONE: Nessuna GPU accelerata trovata (né CUDA né Apple Metal).")
-                print("Le analisi di IA verranno eseguite sulla CPU, risultando molto più lente.\n")
+                print("Le analisi di IA verranno eseguiti sulla CPU, risultando molto più lente.\n")
         except Exception as e:
             print(f"ERRORE durante il controllo hardware: {e}\n")
-
 
     def select_input_dir(self):
         path = filedialog.askdirectory(title="Seleziona cartella input")
         if path: self.input_dir.set(path)
-        self.check_inputs()
 
     def select_output_dir(self):
         path = filedialog.askdirectory(title="Seleziona cartella output")
         if path: self.output_dir.set(path)
-        self.check_inputs()
 
     def select_yolo_model(self):
         path = filedialog.askopenfilename(title="Seleziona modello YOLO", filetypes=[("YOLO Model", "*.pt")])
         if path: self.yolo_model_path.set(path)
-        self.check_inputs()
             
     def toggle_yolo_path(self, value):
         if value == "YOLO":
             self.yolo_label.grid()
-            self.yolo_path_label.grid()
+            self.yolo_path_entry.grid()
             self.yolo_button.grid()
         else:
             self.yolo_label.grid_remove()
-            self.yolo_path_label.grid_remove()
+            self.yolo_path_entry.grid_remove()
             self.yolo_button.grid_remove()
         self.check_inputs()
 
+    # --- NUOVA FUNZIONE: Callback per aggiornare lo stato del bottone quando si scrive ---
+    def check_inputs_callback(self, *args):
+        """Callback usato da StringVar.trace_add per chiamare check_inputs."""
+        self.check_inputs()
+
     def check_inputs(self):
+        """Controlla che tutti i percorsi necessari siano validi."""
         input_ok = os.path.isdir(self.input_dir.get())
         output_ok = os.path.isdir(self.output_dir.get())
         yolo_ok = (self.detection_method.get() != "YOLO") or os.path.isfile(self.yolo_model_path.get())
-        self.run_button.configure(state="normal" if input_ok and output_ok and yolo_ok else "disabled")
+        
+        if input_ok and output_ok and yolo_ok:
+            self.run_button.configure(state="normal")
+        else:
+            self.run_button.configure(state="disabled")
 
     def start_analysis_thread(self):
         self.run_button.configure(state="disabled")
-        # --- MODIFICA: Pulisce la console mantenendo il check hardware ---
         self.console.configure(state="normal")
-        # Ottiene il contenuto attuale (che include il check hardware)
         content = self.console.get("1.0", tkinter.END)
-        # Ricostruisce la console con il check e un separatore
+        lines = content.split('\n')
+        # Mantiene solo le linee del check hardware iniziale
+        hw_check_content = "\n".join(line for line in lines if "ACCELERAZIONE HARDWARE" in line or "Trovata" in line or "Trovato" in line or "ATTENZIONE" in line or "ERRORE" in line)
+        
         self.console.delete("1.0", tkinter.END)
-        self.console.insert(tkinter.END, content)
-        self.console.insert(tkinter.END, "----------------------------------------\n\n")
+        self.console.insert(tkinter.END, hw_check_content + "\n----------------------------------------\n\n")
         self.console.configure(state="disabled")
         
         threading.Thread(target=self.run_full_analysis, daemon=True).start()
@@ -180,8 +196,6 @@ class MainApp(ctk.CTk):
         try:
             print("--- ANALISI AVVIATA ---\n")
             
-            # --- Creazione oggetti 'args' per passare i parametri ---
-            # Questo simula il passaggio di argomenti da riga di comando
             args_trim = type('Args', (), {
                 'input_video': os.path.join(self.input_dir.get(), 'video.mp4'), 
                 'output_dir': self.output_dir.get()
