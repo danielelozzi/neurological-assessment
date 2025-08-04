@@ -51,7 +51,7 @@ Per eseguire il software, è necessario installare le dipendenze in un ambiente 
 2.  **Configura l'Analisi**: 
     * **1. Cartella Input**: Scegli la cartella dati di Pupil Cloud. 
     * **2. Cartella Output**: Scegli dove salvare i risultati. 
-    * **3. Metodo di Rilevamento**: YOLO (raccomandato) o Hough Circle. 
+    * **3. Metodo di Rilevamento**: YOLO (raccomandato) o Hough Circle. Se si utilizza il metodo Hough Circle, l'algoritmo adatta dinamicamente i parametri di ricerca in base alle dimensioni dello schermo (rilevate tramite AprilTag), aumentando notevolmente l'affidabilità.
     * **4. Modello YOLO**: Se necessario, carica il file del modello `.pt`. 
     * **5. Analisi Aggiuntive**: Seleziona le caselle per attivare le analisi opzionali. 
         * **Frammentazione**: Genera grafici sulla fluidità del movimento oculare.

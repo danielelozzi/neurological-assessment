@@ -38,11 +38,20 @@ def detect_ball_yolo(frame, model, sports_ball_class_id):
         return ball_bbox, norm_ball_x, norm_ball_y
     return None, None, None
 
-def detect_ball_hough(frame):
+# --- MODIFICA: La funzione ora accetta min_radius e max_radius come argomenti ---
+def detect_ball_hough(frame, min_radius, max_radius):
+    """
+    Rileva il cerchio usando la Trasformata di Hough con un raggio dinamico.
+    """
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray_frame = cv2.GaussianBlur(gray_frame, (9, 9), 2)
-    circles = cv2.HoughCircles(gray_frame, cv2.HOUGH_GRADIENT, dp=1.2, minDist=100,
-                               param1=50, param2=30, minRadius=5, maxRadius=100)
+    
+    # I parametri minDist, param1, e param2 sono generalmente robusti, 
+    # ma il raggio è l'elemento critico da adattare.
+    circles = cv2.HoughCircles(gray_frame, cv2.HOUGH_GRADIENT, dp=1.2, minDist=int(frame.shape[0] / 2),
+                               param1=50, param2=30, 
+                               minRadius=min_radius, maxRadius=max_radius)
+    
     if circles is not None:
         circles = np.round(circles[0, :]).astype("int")
         (x, y, r) = circles[0]
@@ -117,7 +126,7 @@ def main(args):
         sports_ball_class_id = list(classes.keys())[list(classes.values()).index('sports ball')]
         print("Modello YOLOv8 caricato.")
     else:
-        print("Modalità di rilevamento: Trasformata di Hough per Cerchi.")
+        print("Modalità di rilevamento: Trasformata di Hough per Cerchi (con raggio dinamico).")
 
     cap = cv2.VideoCapture(input_video_path)
     if not cap.isOpened(): raise IOError(f"Errore: Impossibile aprire il video {input_video_path}")
@@ -145,6 +154,11 @@ def main(args):
         in_movement = False
         current_movement_direction = ""
         last_known_zone = 'center'
+        
+        # --- NUOVA LOGICA: Variabili per il raggio dinamico ---
+        hough_min_radius = 10  # Default
+        hough_max_radius = 100 # Default
+        dynamic_radius_calculated = False
 
         while frame_count < end_frame:
             ret, original_frame = cap.read()
@@ -182,11 +196,21 @@ def main(args):
 
             if out is None:
                 out = cv2.VideoWriter(output_video_path, fourcc, fps, (output_width, output_height))
+            
+            # --- NUOVA LOGICA: Calcolo del raggio dinamico una sola volta per segmento ---
+            if not args.use_yolo and not dynamic_radius_calculated and output_height > 0:
+                # Impostiamo il raggio minimo e massimo come frazione dell'altezza dello schermo
+                # Esempio: Il raggio del cerchio è tra il 5% e il 15% dell'altezza dello schermo
+                hough_min_radius = int(output_height * 0.05)
+                hough_max_radius = int(output_height * 0.15)
+                print(f"INFO: Raggio dinamico per Hough calcolato: min={hough_min_radius}px, max={hough_max_radius}px")
+                dynamic_radius_calculated = True
 
             if args.use_yolo:
                 ball_bbox, norm_ball_x, norm_ball_y = detect_ball_yolo(warped_frame, model, sports_ball_class_id)
             else:
-                ball_bbox, norm_ball_x, norm_ball_y = detect_ball_hough(warped_frame)
+                # --- MODIFICA: Passiamo i valori dinamici alla funzione ---
+                ball_bbox, norm_ball_x, norm_ball_y = detect_ball_hough(warped_frame, hough_min_radius, hough_max_radius)
 
             current_zone = get_zone(norm_ball_x, norm_ball_y)
 
