@@ -25,6 +25,14 @@ def main(args):
     if not cap.isOpened():
         raise IOError(f"Errore: Impossibile aprire il video '{args.input_video}'")
 
+    # --- NUOVA MODIFICA: Ottieni il numero totale di frame e calcola il limite di 1/3 ---
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if total_frames == 0:
+        raise ValueError("Errore: Impossibile leggere la durata del video.")
+    stop_frame_threshold = total_frames // 3
+    print(f"Video di {total_frames} frame. Il processo si interromperà se l'innesco non viene trovato entro il frame {stop_frame_threshold}.")
+
+
     try:
         reader = easyocr.Reader(['en'], gpu=True)
         print("EasyOCR inizializzato con GPU.")
@@ -39,26 +47,42 @@ def main(args):
     t0 = -1
     frame_number = 0
     one_confirmed = False
-    consecutive_one_frames = 0
-    DETECTION_THRESHOLD = 2
 
-    print(f"Scansione di '{os.path.basename(args.input_video)}' per trovare {DETECTION_THRESHOLD} frame consecutivi con '1'...")
+    detection_goal = 2
+    frame_tolerance = 5
+    detections_found = 0
+    last_detection_frame = -1
+    
+    print(f"Scansione di '{os.path.basename(args.input_video)}' per trovare {detection_goal} rilevamenti di '1' con una tolleranza di {frame_tolerance} frame...")
+    
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
 
+        # --- NUOVA MODIFICA: Controlla se abbiamo superato il limite di 1/3 del video ---
+        if not one_confirmed and frame_number > stop_frame_threshold:
+            cap.release()
+            raise RuntimeError(f"ERRORE: Innesco non trovato dopo aver analizzato 1/3 del video (frame {frame_number}). Processo interrotto.")
+
+        # Modificato per mostrare anche il totale dei frame
+        if frame_number % 30 == 0:
+            print(f"Scansione in corso... Frame: {frame_number}/{total_frames}", end='\r')
+
         is_one_present = detect_text_ocr(frame, reader, '1')
 
         if not one_confirmed:
             if is_one_present:
-                consecutive_one_frames += 1
-            else:
-                consecutive_one_frames = 0
+                if last_detection_frame == -1 or (frame_number - last_detection_frame) > frame_tolerance + 1:
+                    detections_found = 1
+                else:
+                    detections_found += 1
+                
+                last_detection_frame = frame_number
             
-            if consecutive_one_frames >= DETECTION_THRESHOLD:
+            if detections_found >= detection_goal:
                 one_confirmed = True
-                print(f"Rilevamento del numero '1' confermato al frame {frame_number}. Attesa della sua scomparsa...")
+                print(f"\n{" " * 70}\rRilevamento del numero '1' confermato intorno al frame {frame_number}. Attesa della sua scomparsa...")
         
         elif one_confirmed and not is_one_present:
             t0 = frame_number
@@ -67,9 +91,13 @@ def main(args):
         
         frame_number += 1
 
+    print(" " * 70, end='\r')
+
     cap.release()
     if t0 == -1:
-        raise RuntimeError("ERRORE: Impossibile trovare il punto di riferimento (scomparsa del numero '1'). Analisi interrotta.")
+        # Se t0 non è stato trovato ma il ciclo è finito, la causa potrebbe essere il limite o la fine del video
+        if frame_number <= stop_frame_threshold:
+             raise RuntimeError("ERRORE: Impossibile trovare il punto di riferimento (scomparsa del numero '1'). Analisi interrotta.")
 
     os.makedirs(args.output_dir, exist_ok=True)
     
