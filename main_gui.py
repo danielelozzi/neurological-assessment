@@ -9,12 +9,10 @@ import traceback
 import torch
 import csv
 import pandas as pd # Aggiunto per scrivere il CSV
-
-# Importa le funzioni main dagli altri script
+from types import SimpleNamespace
 import trim_video
 import detect_and_save_ball
 import generate_report
-# NUOVO: Importa il selettore interattivo
 from interactive_selector import InteractiveVideoSelector
 
 
@@ -285,13 +283,16 @@ class MainApp(ctk.CTk):
         analysis_thread.daemon = True
         analysis_thread.start()
 
+# In main_gui.py
+
     def run_full_analysis(self):
+        """Esegue l'intera pipeline di analisi."""
         success = False
         error_message = ""
         try:
             print("--- ANALISI AVVIATA ---\n")
             
-            # FASE 1: Definizione Punti di Taglio
+            # --- FASE 1: Definizione Punti di Taglio ---
             cut_points_path = os.path.join(self.output_dir.get(), 'cut_points.csv')
             if self.manual_segments_mode.get():
                 print("Modalità manuale attiva: creo 'cut_points.csv' dai valori inseriti nella GUI...")
@@ -303,30 +304,36 @@ class MainApp(ctk.CTk):
                 print("'cut_points.csv' creato con successo.")
             else:
                 print("Modalità automatica: avvio 'trim_video.py' per trovare i punti di taglio...")
-                args_trim = type('Args', (), {'input_video': os.path.join(self.input_dir.get(), 'video.mp4'), 'output_dir': self.output_dir.get()})
+                # --- CORREZIONE QUI: Usa SimpleNamespace ---
+                args_trim = SimpleNamespace(
+                    input_video=os.path.join(self.input_dir.get(), 'video.mp4'),
+                    output_dir=self.output_dir.get()
+                )
                 trim_video.main(args_trim)
 
-            # FASE 2: Rilevamento palla e sguardi
+            # --- FASE 2: Rilevamento palla e sguardi ---
             print("\n--- Avvio 'detect_and_save_ball.py' ---")
-            args_detect = type('Args', (), {
-                'input_dir': self.input_dir.get(), 
-                'output_dir': self.output_dir.get(), 
-                'use_yolo': (self.detection_method.get() == "YOLO"), 
-                'yolo_model': self.yolo_model_path.get()
-            })
+            # --- CORREZIONE QUI: Usa SimpleNamespace ---
+            args_detect = SimpleNamespace(
+                input_dir=self.input_dir.get(), 
+                output_dir=self.output_dir.get(), 
+                use_yolo=(self.detection_method.get() == "YOLO"), 
+                yolo_model=self.yolo_model_path.get()
+            )
             detect_and_save_ball.main(args_detect)
 
-            # FASE 3: Generazione Report
+            # --- FASE 3: Generazione Report ---
             print("\n--- Avvio 'generate_report.py' ---")
             manual_events_file = self.manual_events_path.get() if self.manual_events_mode.get() else None
-            args_report = type('Args', (), {
-                'analysis_dir': self.output_dir.get(), 
-                'output_dir': self.output_dir.get(), 
-                'input_dir_for_pupil': self.input_dir.get(), 
-                'run_fragmentation_analysis': self.run_fragmentation_analysis.get(), 
-                'run_excursion_analysis': self.run_excursion_analysis.get(),
-                'manual_events_path': manual_events_file
-            })
+            # --- CORREZIONE QUI: Usa SimpleNamespace ---
+            args_report = SimpleNamespace(
+                analysis_dir=self.output_dir.get(), 
+                output_dir=self.output_dir.get(), 
+                input_dir_for_pupil=self.input_dir.get(), 
+                run_fragmentation_analysis=self.run_fragmentation_analysis.get(), 
+                run_excursion_analysis=self.run_excursion_analysis.get(),
+                manual_events_path=manual_events_file
+            )
             generate_report.main(args_report)
             
             print("\n====== ANALISI COMPLETATA CON SUCCESSO ======")
