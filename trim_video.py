@@ -4,12 +4,42 @@ import os
 import sys
 import csv
 
+# --- MODIFICA RADICALE: Funzione potenziata con pre-elaborazione dell'immagine ---
 def detect_text_ocr(frame, reader, text_to_find='1'):
-    """Usa EasyOCR per trovare un testo specifico in un frame."""
-    results = reader.readtext(frame, allowlist='1')
-    for (bbox, text, prob) in results:
+    """
+    Usa EasyOCR su un'immagine pre-elaborata per massimizzare l'accuratezza
+    in video di bassa qualità, concentrandosi sul centro dello schermo.
+    """
+    # 1. Definiamo una Zona di Interesse (ROI) al centro del frame
+    h, w, _ = frame.shape
+    roi_x_start = int(w * 0.25)
+    roi_y_start = int(h * 0.25)
+    roi_x_end = int(w * 0.75)
+    roi_y_end = int(h * 0.75)
+    
+    roi = frame[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
+
+    # 2. Applichiamo filtri per "pulire" l'immagine
+    # Convertiamo in scala di grigi
+    gray_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    
+    # Applichiamo una sfumatura per ridurre il rumore
+    blurred = cv2.GaussianBlur(gray_roi, (5, 5), 0)
+    
+    # Applichiamo un thresholding adattivo per far risaltare il testo
+    # È molto efficace in condizioni di luce non uniformi
+    processed_roi = cv2.adaptiveThreshold(blurred, 255, 
+                                          cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                                          cv2.THRESH_BINARY_INV, 11, 2)
+
+    # 3. Eseguiamo l'OCR sull'immagine elaborata
+    results = reader.readtext(processed_roi, allowlist='0123456789', detail=0)
+    
+    # Controlliamo se il testo cercato è nei risultati
+    for text in results:
         if text_to_find in text:
             return True
+            
     return False
 
 def main(args):
@@ -25,7 +55,6 @@ def main(args):
     if not cap.isOpened():
         raise IOError(f"Errore: Impossibile aprire il video '{args.input_video}'")
 
-    # --- NUOVA MODIFICA: Ottieni il numero totale di frame e calcola il limite di 1/3 ---
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     if total_frames == 0:
         raise ValueError("Errore: Impossibile leggere la durata del video.")
@@ -60,12 +89,10 @@ def main(args):
         if not ret:
             break
 
-        # --- NUOVA MODIFICA: Controlla se abbiamo superato il limite di 1/3 del video ---
         if not one_confirmed and frame_number > stop_frame_threshold:
             cap.release()
             raise RuntimeError(f"ERRORE: Innesco non trovato dopo aver analizzato 1/3 del video (frame {frame_number}). Processo interrotto.")
 
-        # Modificato per mostrare anche il totale dei frame
         if frame_number % 30 == 0:
             print(f"Scansione in corso... Frame: {frame_number}/{total_frames}", end='\r')
 
@@ -95,7 +122,6 @@ def main(args):
 
     cap.release()
     if t0 == -1:
-        # Se t0 non è stato trovato ma il ciclo è finito, la causa potrebbe essere il limite o la fine del video
         if frame_number <= stop_frame_threshold:
              raise RuntimeError("ERRORE: Impossibile trovare il punto di riferimento (scomparsa del numero '1'). Analisi interrotta.")
 
