@@ -5,6 +5,49 @@ import os
 import sys
 from ultralytics import YOLO
 
+# --- NUOVA FUNZIONE: Esegue un Grid Search per i parametri di Hough ---
+def find_optimal_hough_params(sample_frame):
+    """
+    Esegue una ricerca su una griglia di parametri per trovare la combinazione ottimale
+    che rileva esattamente un cerchio in un frame di esempio.
+    """
+    print("INFO: Avvio ricerca parametri ottimali per Hough Circle...")
+    gray_frame = cv2.cvtColor(sample_frame, cv2.COLOR_BGR2GRAY)
+    gray_frame = cv2.GaussianBlur(gray_frame, (9, 9), 2)
+    height, width, _ = sample_frame.shape
+
+    # 1. Definiamo la griglia di ricerca
+    param1_values = [70, 50, 40, 30]  # Soglia Canny (da alta a bassa)
+    param2_values = [40, 30, 20, 15]  # Accumulatore (da severo a permissivo)
+    radius_ranges_perc = [
+        (0.06, 0.12),  # Range "standard" (raggio tra 6% e 12% dell'altezza)
+        (0.04, 0.08),  # Range "piccolo"
+        (0.10, 0.20)   # Range "grande"
+    ]
+
+    # 2. Iteriamo sulla griglia per trovare la prima combinazione valida
+    for p1 in param1_values:
+        for p2 in param2_values:
+            for r_min_perc, r_max_perc in radius_ranges_perc:
+                min_r = int(height * r_min_perc)
+                max_r = int(height * r_max_perc)
+                
+                circles = cv2.HoughCircles(gray_frame, cv2.HOUGH_GRADIENT, dp=1.2, 
+                                           minDist=height, # Assicura di trovare al massimo un cerchio
+                                           param1=p1, param2=p2,
+                                           minRadius=min_r, maxRadius=max_r)
+                
+                if circles is not None and len(circles[0]) == 1:
+                    # Successo! Trovata una combinazione che rileva un solo cerchio.
+                    optimal_params = {'param1': p1, 'param2': p2, 'minRadius': min_r, 'maxRadius': max_r}
+                    print(f"✅ Parametri ottimali trovati: {optimal_params}")
+                    return optimal_params
+
+    # 3. Se nessuna combinazione ha funzionato, ritorniamo un default e avvisiamo l'utente
+    print("⚠️ ATTENZIONE: Nessuna combinazione di parametri ha prodotto un risultato ottimale. Uso i default.")
+    return {'param1': 50, 'param2': 30, 'minRadius': int(height * 0.05), 'maxRadius': int(height * 0.15)}
+
+
 def get_zone(x, y):
     """Determina in quale zona dello schermo si trova una coordinata normalizzata."""
     if x is None or y is None:
@@ -38,19 +81,20 @@ def detect_ball_yolo(frame, model, sports_ball_class_id):
         return ball_bbox, norm_ball_x, norm_ball_y
     return None, None, None
 
-# --- MODIFICA: La funzione ora accetta min_radius e max_radius come argomenti ---
-def detect_ball_hough(frame, min_radius, max_radius):
+# --- MODIFICA: La funzione ora accetta un dizionario di parametri ---
+def detect_ball_hough(frame, hough_params):
     """
-    Rileva il cerchio usando la Trasformata di Hough con un raggio dinamico.
+    Rileva il cerchio usando la Trasformata di Hough con parametri ottimizzati.
     """
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray_frame = cv2.GaussianBlur(gray_frame, (9, 9), 2)
     
-    # I parametri minDist, param1, e param2 sono generalmente robusti, 
-    # ma il raggio è l'elemento critico da adattare.
-    circles = cv2.HoughCircles(gray_frame, cv2.HOUGH_GRADIENT, dp=1.2, minDist=int(frame.shape[0] / 2),
-                               param1=50, param2=30, 
-                               minRadius=min_radius, maxRadius=max_radius)
+    circles = cv2.HoughCircles(gray_frame, cv2.HOUGH_GRADIENT, dp=1.2, 
+                               minDist=int(frame.shape[0]), # Usa l'altezza per minDist
+                               param1=hough_params['param1'], 
+                               param2=hough_params['param2'], 
+                               minRadius=hough_params['minRadius'], 
+                               maxRadius=hough_params['maxRadius'])
     
     if circles is not None:
         circles = np.round(circles[0, :]).astype("int")
@@ -126,7 +170,7 @@ def main(args):
         sports_ball_class_id = list(classes.keys())[list(classes.values()).index('sports ball')]
         print("Modello YOLOv8 caricato.")
     else:
-        print("Modalità di rilevamento: Trasformata di Hough per Cerchi (con raggio dinamico).")
+        print("Modalità di rilevamento: Trasformata di Hough per Cerchi (con ricerca parametri automatica).")
 
     cap = cv2.VideoCapture(input_video_path)
     if not cap.isOpened(): raise IOError(f"Errore: Impossibile aprire il video {input_video_path}")
@@ -155,10 +199,9 @@ def main(args):
         current_movement_direction = ""
         last_known_zone = 'center'
         
-        # --- NUOVA LOGICA: Variabili per il raggio dinamico ---
-        hough_min_radius = 10  # Default
-        hough_max_radius = 100 # Default
-        dynamic_radius_calculated = False
+        # --- MODIFICA: Variabili per gestire i parametri ottimizzati ---
+        hough_params = None
+        params_found = False
 
         while frame_count < end_frame:
             ret, original_frame = cap.read()
@@ -197,20 +240,15 @@ def main(args):
             if out is None:
                 out = cv2.VideoWriter(output_video_path, fourcc, fps, (output_width, output_height))
             
-            # --- NUOVA LOGICA: Calcolo del raggio dinamico una sola volta per segmento ---
-            if not args.use_yolo and not dynamic_radius_calculated and output_height > 0:
-                # Impostiamo il raggio minimo e massimo come frazione dell'altezza dello schermo
-                # Esempio: Il raggio del cerchio è tra il 5% e il 15% dell'altezza dello schermo
-                hough_min_radius = int(output_height * 0.05)
-                hough_max_radius = int(output_height * 0.15)
-                print(f"INFO: Raggio dinamico per Hough calcolato: min={hough_min_radius}px, max={hough_max_radius}px")
-                dynamic_radius_calculated = True
+            # --- MODIFICA: Chiamiamo la ricerca parametri sul primo frame valido ---
+            if not args.use_yolo and not params_found:
+                hough_params = find_optimal_hough_params(warped_frame)
+                params_found = True
 
             if args.use_yolo:
                 ball_bbox, norm_ball_x, norm_ball_y = detect_ball_yolo(warped_frame, model, sports_ball_class_id)
             else:
-                # --- MODIFICA: Passiamo i valori dinamici alla funzione ---
-                ball_bbox, norm_ball_x, norm_ball_y = detect_ball_hough(warped_frame, hough_min_radius, hough_max_radius)
+                ball_bbox, norm_ball_x, norm_ball_y = detect_ball_hough(warped_frame, hough_params)
 
             current_zone = get_zone(norm_ball_x, norm_ball_y)
 
