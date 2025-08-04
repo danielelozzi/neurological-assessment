@@ -82,7 +82,7 @@ def preprocess_simple_binary_otsu(roi):
     _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
     return thresh
 
-# --- NUOVO: Worker per l'esecuzione parallela dell'OCR ---
+# --- Worker per l'esecuzione parallela dell'OCR ---
 def run_ocr_on_pipeline(args):
     """
     Funzione eseguita da ogni thread. Prende un frame, una pipeline,
@@ -107,7 +107,7 @@ def run_ocr_on_pipeline(args):
     except Exception:
         return False
 
-# --- MODIFICA: La funzione ora orchestra i thread paralleli ---
+# --- La funzione ora orchestra i thread paralleli ---
 def detect_text_ocr(frame, reader, text_to_find='1', executor=None):
     """
     Prova diverse pipeline in parallelo per massimizzare il rilevamento.
@@ -145,7 +145,6 @@ def main(args):
     if total_frames == 0:
         raise ValueError("Errore: Impossibile leggere la durata del video.")
     
-    # --- MODIFICA: Limite di ricerca ridotto a 1/6 del video ---
     stop_frame_threshold = total_frames // 6
     print(f"Video di {total_frames} frame. Timeout automatico impostato al frame {stop_frame_threshold}.")
 
@@ -187,6 +186,8 @@ def main(args):
                 
                 if detections_found >= detection_goal:
                     one_confirmed = True
+                    # --- CORREZIONE QUI ---
+                    # Ho sostituito le virgolette doppie interne con quelle singole per risolvere il SyntaxError
                     print(f"\n{' ' * 70}\rRilevamento del numero '1' confermato. Attesa della sua scomparsa...")
             
             elif one_confirmed and not is_one_present:
@@ -199,7 +200,6 @@ def main(args):
     print(" " * 70, end='\r')
     cap.release()
 
-    # --- NUOVO: Logica di fallback per l'inserimento manuale ---
     manual_frames = None
     if t0 == -1:
         print("Ricerca automatica fallita. Apertura interfaccia per inserimento manuale...")
@@ -210,14 +210,12 @@ def main(args):
     os.makedirs(args.output_dir, exist_ok=True)
     
     if manual_frames:
-        # Calcola i punti di taglio dai dati manuali
         fast_start_frame = manual_frames["fast"]
         slow_start_frame = manual_frames["slow"]
         fast_end_frame = fast_start_frame + int(32 * fps)
         slow_end_frame = slow_start_frame + int(70 * fps)
         print("Punti di taglio calcolati da input manuale.")
     else:
-        # Calcola i punti di taglio dai dati automatici
         t0 += int(5 * fps)
         fast_start_frame = t0
         fast_end_frame = t0 + int(32 * fps)
