@@ -140,11 +140,15 @@ class InteractiveFrameSelector:
         if h > max_h:
             ratio = max_h / h
             new_w, new_h = int(w * ratio), int(h * ratio)
-            img = img.resize((new_w, new_h), Image.LANCZOS)
+            # CORREZIONE 1: Usa Image.Resampling.LANCZOS
+            img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
         photo = ImageTk.PhotoImage(image=img)
         self.video_label.config(image=photo)
-        self.video_label.image = photo # Mantiene un riferimento per evitare garbage collection
+        
+        # CORREZIONE 2: Mantiene un riferimento per evitare la garbage collection e dice a Pylance di ignorare il falso positivo
+        self.video_label.image = photo # type: ignore
+        
         self.frame_info_label.config(text=f"Frame: {self.current_frame_num} / {self.total_frames}")
 
     def confirm(self):
