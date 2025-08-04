@@ -109,7 +109,8 @@ def main(args):
             
             if detections_found >= detection_goal:
                 one_confirmed = True
-                print(f"\n{" " * 70}\rRilevamento del numero '1' confermato intorno al frame {frame_number}. Attesa della sua scomparsa...")
+                # --- CORREZIONE QUI ---
+                print(f"\n{' ' * 70}\rRilevamento del numero '1' confermato intorno al frame {frame_number}. Attesa della sua scomparsa...")
         
         elif one_confirmed and not is_one_present:
             t0 = frame_number
