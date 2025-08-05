@@ -1,10 +1,10 @@
 # Strumento di Analisi dei dati dell'Assessment Neurologico Computerizzato (CNA)
 
 **LabSCoC (Laboratorio di Scienze Cognitive e del Comportamento)**  
-**Sito Web Lab:** [labscoc.wordpress.com](https://labscoc.wordpress.com)
+**Sito Web Lab:** [labscoc.wordpress.com](https://labscoc.wordpress.com) PI: Prof. Giuseppe Curcio
 
-**Repository GitHub:** [github.com/danielelozzi/neurological-assessment](https://github.com/danielelozzi/neurological-assessment)  
-**Concettualizzazione:** Dr. Massimo Marano
+**Repository GitHub:** [Dr. Daniele Lozzi](https://github.com/danielelozzi)  
+**Concettualizzazione:** [Dr. Massimo Marano](https://www.unicampus.it/people/massimo-marano/)
 
 ---
 
@@ -71,7 +71,7 @@ Il file deve contenere le seguenti colonne: `segment_name`, `direction_simple`, 
 - **start_frame**: Il numero del frame in cui inizia il movimento
 - **end_frame**: Il numero del frame in cui termina il movimento
 
-**Esempio (`miei_eventi.csv`)**:
+**Esempio (`manual_events.csv`)**:
 ```csv
 segment_name,direction_simple,start_frame,end_frame
 fast,right,5010,5090
