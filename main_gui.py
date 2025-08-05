@@ -1,6 +1,6 @@
 import tkinter
 import customtkinter as ctk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, TclError
 import os
 import threading
 import sys
@@ -8,13 +8,14 @@ import webbrowser
 import traceback
 import torch
 import csv
-import pandas as pd # Aggiunto per scrivere il CSV
+import pandas as pd
 from types import SimpleNamespace
+
+# Importa le funzioni main dagli altri script
 import trim_video
 import detect_and_save_ball
 import generate_report
 from interactive_selector import InteractiveVideoSelector
-
 
 class StdoutRedirector:
     """Redirige l'output della console a un widget Text di tkinter."""
@@ -34,16 +35,23 @@ class MainApp(ctk.CTk):
 
         # --- CONFIGURAZIONE FINESTRA ---
         self.title("LabSCoC - Strumento di Analisi CNA")
-        self.geometry("800x1250") # Altezza leggermente aumentata per i nuovi pulsanti
+        self.geometry("850x900") # Dimensione di partenza flessibile
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
+        # --- MODIFICA: Configurazione della griglia per la scrollbar ---
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(3, weight=1)
+        self.grid_rowconfigure(0, weight=1) # Diamo peso alla riga 0 che conterrà l'area scrollabile
 
-        # --- HEADER E BRANDING ---
-        header_frame = ctk.CTkFrame(self)
-        header_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
+        # --- MODIFICA: Creazione di un frame scrollabile principale ---
+        # Tutti i widget (tranne il pulsante finale) andranno qui dentro.
+        container = ctk.CTkScrollableFrame(self)
+        container.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="nsew")
+        container.grid_columnconfigure(0, weight=1)
+
+        # --- HEADER E BRANDING (dentro il container) ---
+        header_frame = ctk.CTkFrame(container)
+        header_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
         header_frame.grid_columnconfigure(0, weight=1)
         title_label = ctk.CTkLabel(header_frame, text="Strumento di Analisi Neuro-Visuale", font=ctk.CTkFont(size=20, weight="bold"))
         title_label.pack(anchor="w", padx=10, pady=(10,0))
@@ -54,9 +62,9 @@ class MainApp(ctk.CTk):
         github_link.bind("<Button-1>", lambda e: webbrowser.open_new("https://github.com/danielelozzi/neurological-assessment"))
         github_link.pack(anchor="w", padx=10, pady=(0,10))
 
-        # --- FRAME PRINCIPALE ---
-        main_frame = ctk.CTkFrame(self)
-        main_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
+        # --- FRAME PRINCIPALE DELLE OPZIONI (dentro il container) ---
+        main_frame = ctk.CTkFrame(container)
+        main_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
         main_frame.grid_columnconfigure(1, weight=1)
 
         # --- VARIABILI DI STATO ---
@@ -102,7 +110,6 @@ class MainApp(ctk.CTk):
         manual_options_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         manual_options_frame.grid(row=3, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         
-        # Pulsanti per la selezione interattiva
         interactive_buttons_frame = ctk.CTkFrame(manual_options_frame)
         interactive_buttons_frame.pack(fill="x", pady=(5, 15))
         
@@ -112,11 +119,9 @@ class MainApp(ctk.CTk):
         self.interactive_events_button = ctk.CTkButton(interactive_buttons_frame, text="Definisci Eventi UP/DOWN/LEFT/RIGHT (Interattivo)", command=self.define_events_interactively)
         self.interactive_events_button.pack(fill="x", padx=20, pady=5)
         
-        # Checkbox per i segmenti manuali (testuale)
         self.manual_segments_check = ctk.CTkCheckBox(manual_options_frame, text="Definisci Segmenti Manualmente (Testuale)", variable=self.manual_segments_mode, command=self.toggle_manual_segments_frame)
         self.manual_segments_check.pack(anchor="w", padx=5, pady=(10,0))
         
-        # Frame per l'inserimento manuale dei segmenti
         self.manual_segments_frame = ctk.CTkFrame(manual_options_frame)
         self.manual_segments_frame.columnconfigure(1, weight=1)
         ctk.CTkLabel(self.manual_segments_frame, text="Segmento 'Fast':").grid(row=0, column=0, padx=10, pady=5, sticky="w")
@@ -126,11 +131,9 @@ class MainApp(ctk.CTk):
         ctk.CTkEntry(self.manual_segments_frame, textvariable=self.slow_start_frame, placeholder_text="Frame Inizio").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
         ctk.CTkEntry(self.manual_segments_frame, textvariable=self.slow_end_frame, placeholder_text="Frame Fine").grid(row=1, column=2, padx=5, pady=5, sticky="ew")
 
-        # Checkbox per gli eventi manuali (CSV)
         self.manual_events_check = ctk.CTkCheckBox(manual_options_frame, text="Carica Eventi da File CSV", variable=self.manual_events_mode, command=self.toggle_manual_events_frame)
         self.manual_events_check.pack(anchor="w", padx=5, pady=(10,0))
 
-        # Frame per la selezione del file CSV
         self.manual_events_frame = ctk.CTkFrame(manual_options_frame)
         self.manual_events_frame.columnconfigure(0, weight=1)
         self.manual_events_entry = ctk.CTkEntry(self.manual_events_frame, textvariable=self.manual_events_path)
@@ -145,19 +148,22 @@ class MainApp(ctk.CTk):
         ctk.CTkCheckBox(analyses_frame, text="Genera grafici 'Frammentazione'", variable=self.run_fragmentation_analysis).pack(anchor="w", padx=25, pady=5)
         ctk.CTkCheckBox(analyses_frame, text="Calcola metrica 'Escursione'", variable=self.run_excursion_analysis).pack(anchor="w", padx=25, pady=5)
 
-        # --- Console e Pulsante Avvio ---
-        console_frame = ctk.CTkFrame(self)
-        console_frame.grid(row=2, column=0, padx=20, pady=10, sticky="nsew")
+        # --- CONSOLE (dentro il container) ---
+        console_frame = ctk.CTkFrame(container)
+        console_frame.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
         console_frame.grid_columnconfigure(0, weight=1)
         console_frame.grid_rowconfigure(1, weight=1)
+        container.grid_rowconfigure(2, weight=1)
+
         ctk.CTkLabel(console_frame, text="Log di Analisi:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky="w", padx=10, pady=(5,0))
-        self.console = ctk.CTkTextbox(console_frame, state="disabled")
+        self.console = ctk.CTkTextbox(console_frame, state="disabled", height=200)
         self.console.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
         sys.stdout = StdoutRedirector(self.console)
         sys.stderr = StdoutRedirector(self.console)
         
+        # --- PULSANTE DI AVVIO FINALE (fuori dal container, fisso in basso) ---
         self.run_button = ctk.CTkButton(self, text="Avvia Analisi Completa", command=self.start_analysis_thread, height=40, font=ctk.CTkFont(size=14, weight="bold"), state="disabled")
-        self.run_button.grid(row=4, column=0, padx=20, pady=20, sticky="ew")
+        self.run_button.grid(row=1, column=0, padx=20, pady=20, sticky="ew")
         
         # --- Inizializzazione ---
         self.check_hardware_acceleration()
@@ -183,7 +189,7 @@ class MainApp(ctk.CTk):
                 self.slow_start_frame.set(str(segments['slow'][0]))
                 self.slow_end_frame.set(str(segments['slow'][1]))
             
-            self.manual_segments_mode.set(True) # Attiva la modalità manuale testuale
+            self.manual_segments_mode.set(True)
             print("Segmenti 'fast' e 'slow' definiti interattivamente.")
         else:
             print("Definizione interattiva dei segmenti annullata.")
@@ -283,19 +289,15 @@ class MainApp(ctk.CTk):
         analysis_thread.daemon = True
         analysis_thread.start()
 
-# In main_gui.py
-
     def run_full_analysis(self):
-        """Esegue l'intera pipeline di analisi."""
         success = False
         error_message = ""
         try:
             print("--- ANALISI AVVIATA ---\n")
             
-            # --- FASE 1: Definizione Punti di Taglio ---
             cut_points_path = os.path.join(self.output_dir.get(), 'cut_points.csv')
             if self.manual_segments_mode.get():
-                print("Modalità manuale attiva: creo 'cut_points.csv' dai valori inseriti nella GUI...")
+                print("Modalità manuale segmenti attiva: creo 'cut_points.csv' dai valori inseriti nella GUI...")
                 with open(cut_points_path, 'w', newline='') as f:
                     writer = csv.writer(f)
                     writer.writerow(['segment_name', 'start_frame', 'end_frame'])
@@ -303,17 +305,14 @@ class MainApp(ctk.CTk):
                     writer.writerow(['slow', self.slow_start_frame.get(), self.slow_end_frame.get()])
                 print("'cut_points.csv' creato con successo.")
             else:
-                print("Modalità automatica: avvio 'trim_video.py' per trovare i punti di taglio...")
-                # --- CORREZIONE QUI: Usa SimpleNamespace ---
+                print("Modalità automatica segmenti: avvio 'trim_video.py'...")
                 args_trim = SimpleNamespace(
                     input_video=os.path.join(self.input_dir.get(), 'video.mp4'),
                     output_dir=self.output_dir.get()
                 )
                 trim_video.main(args_trim)
 
-            # --- FASE 2: Rilevamento palla e sguardi ---
             print("\n--- Avvio 'detect_and_save_ball.py' ---")
-            # --- CORREZIONE QUI: Usa SimpleNamespace ---
             args_detect = SimpleNamespace(
                 input_dir=self.input_dir.get(), 
                 output_dir=self.output_dir.get(), 
@@ -322,10 +321,8 @@ class MainApp(ctk.CTk):
             )
             detect_and_save_ball.main(args_detect)
 
-            # --- FASE 3: Generazione Report ---
             print("\n--- Avvio 'generate_report.py' ---")
             manual_events_file = self.manual_events_path.get() if self.manual_events_mode.get() else None
-            # --- CORREZIONE QUI: Usa SimpleNamespace ---
             args_report = SimpleNamespace(
                 analysis_dir=self.output_dir.get(), 
                 output_dir=self.output_dir.get(), 

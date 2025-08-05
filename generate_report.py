@@ -182,39 +182,69 @@ def validate_movement_sequence(df, seq, name):
     else:
         print("  - ✅ La sequenza rilevata corrisponde a quella attesa.")
 
-def generate_fragmentation_plots(df_analysis, df_cuts, output_dir):
+# In generate_report.py
+
+# In generate_report.py
+
+def generate_fragmentation_plots(df_main, df_cuts, output_dir):
     """
-    Genera e salva i grafici relativi all'analisi di frammentazione dello sguardo.
+    Genera grafici della frammentazione dello sguardo, evidenziando i periodi di ogni trial.
     """
-    print("\nINFO: Avvio generazione grafici 'Frammentazione'...")
+    print("\nINFO: Avvio generazione grafici 'Frammentazione' con trigger degli eventi...")
     sns.set_theme(style="whitegrid")
     
+    # --- CORREZIONE QUI ---
+    # Convertiamo i colori in un formato (tupla di float) che Matplotlib capisce.
+    # (R/255, G/255, B/255, Alpha)
+    direction_colors = {
+        'up':    (1.0, 0.70, 0.73, 0.3), # Rosa pastello
+        'down':  (0.73, 0.88, 1.0, 0.3),  # Azzurro pastello
+        'left':  (0.73, 1.0, 0.79, 0.3),  # Verde pastello
+        'right': (1.0, 0.87, 0.73, 0.3)  # Arancione pastello
+    }
+
     for _, cut_row in df_cuts.iterrows():
         segment_name = cut_row['segment_name']
         start_frame, end_frame = cut_row['start_frame'], cut_row['end_frame']
         
-        df_segment = df_analysis[(df_analysis['frame'] >= start_frame) & (df_analysis['frame'] <= end_frame)].copy()
+        df_segment = df_main[(df_main['frame'] >= start_frame) & (df_main['frame'] <= end_frame)].copy()
         
         if df_segment.empty or df_segment['gaze_speed'].isnull().all():
             continue
 
-        plt.figure(figsize=(15, 6))
-        sns.lineplot(data=df_segment, x='frame', y='gaze_speed', lw=1)
+        plt.figure(figsize=(16, 7))
         
-        # Evidenzia i picchi (saccadi veloci)
-        saccade_threshold = df_segment['gaze_speed'].quantile(0.95) # Soglia al 95° percentile
-        saccades = df_segment[df_segment['gaze_speed'] > saccade_threshold]
-        plt.scatter(saccades['frame'], saccades['gaze_speed'], color='red', s=15, zorder=5, label=f'Picchi > {saccade_threshold:.2f}')
+        sns.lineplot(data=df_segment, x='frame', y='gaze_speed', lw=1, label='Velocità Sguardo', zorder=2)
         
-        plt.title(f"Frammentazione Sguardo (Velocità Saccadica) - Segmento '{segment_name}'")
-        plt.xlabel("Frame Video")
-        plt.ylabel("Velocità Sguardo (distanza normalizzata per frame)")
-        plt.legend()
+        trials_in_segment = df_segment[df_segment['trial_id'] > 0].groupby('trial_id')
+        handled_directions_legend = set()
+
+        for trial_id, trial_df in trials_in_segment:
+            if trial_df.empty:
+                continue
+                
+            trial_start_frame = trial_df['frame'].min()
+            trial_end_frame = trial_df['frame'].max()
+            direction = trial_df['direction_simple'].iloc[0]
+            
+            color = direction_colors.get(direction, (0.78, 0.78, 0.78, 0.3)) # Grigio per default
+            label = f'Trial ({direction})' if direction not in handled_directions_legend else None
+            
+            plt.axvspan(trial_start_frame, trial_end_frame, color=color, label=label, zorder=1)
+            handled_directions_legend.add(direction)
+
+        plt.title(f"Frammentazione Sguardo con Eventi - Segmento '{segment_name}'", fontsize=16)
+        plt.xlabel("Frame Video", fontsize=12)
+        plt.ylabel("Velocità Sguardo (distanza/frame)", fontsize=12)
+        plt.xlim(df_segment['frame'].min(), df_segment['frame'].max())
         
-        plot_path = os.path.join(output_dir, f"fragmentation_plot_{segment_name}.png")
-        plt.savefig(plot_path)
+        if handled_directions_legend:
+            plt.legend()
+        
+        plot_path = os.path.join(output_dir, f"fragmentation_plot_with_events_{segment_name}.png")
+        plt.savefig(plot_path, dpi=150, bbox_inches='tight')
         plt.close()
-        print(f"  - Grafico di frammentazione salvato in: {plot_path}")
+        print(f"  - Grafico di frammentazione con eventi salvato in: {plot_path}")
 
 def calculate_excursion(df_input):
     """
