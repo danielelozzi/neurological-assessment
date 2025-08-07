@@ -182,3 +182,103 @@ class InteractiveVideoSelector(tk.Toplevel):
         self.result = None
         self.cap.release()
         self.destroy()
+
+   
+
+class SingleFrameSelector(tk.Toplevel):
+    """
+    Una finestra di dialogo con un video player semplificato per selezionare
+    un singolo frame e restituirne il numero.
+    """
+    def __init__(self, parent, video_path, title="Seleziona un Frame"):
+        super().__init__(parent)
+        self.title(title)
+        self.transient(parent)
+        self.grab_set()
+
+        self.cap = cv2.VideoCapture(video_path)
+        self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+
+        # Variabili di stato
+        self.is_playing = False
+        self.current_frame_num = 0
+        self.result = None  # Conterrà il frame selezionato
+
+        # --- GUI ---
+        main_frame = tk.Frame(self)
+        main_frame.pack(padx=10, pady=10)
+
+        self.video_label = tk.Label(main_frame)
+        self.video_label.pack()
+
+        self.slider_var = tk.DoubleVar()
+        self.slider = ttk.Scale(main_frame, from_=0, to=self.total_frames - 1, orient="horizontal", variable=self.slider_var, command=self.seek)
+        self.slider.pack(fill="x", expand=True, pady=5)
+
+        controls_frame = tk.Frame(main_frame)
+        controls_frame.pack(pady=10)
+
+        self.play_pause_button = tk.Button(controls_frame, text="Play", width=10, command=self.toggle_play_pause)
+        self.play_pause_button.grid(row=0, column=0, padx=5)
+        self.frame_info_label = tk.Label(controls_frame, text=f"Frame: 0 / {self.total_frames}")
+        self.frame_info_label.grid(row=0, column=1, padx=10)
+
+        action_frame = tk.Frame(main_frame)
+        action_frame.pack(pady=10)
+        tk.Button(action_frame, text="Usa Questo Frame", command=self.confirm, font=("", 12, "bold")).pack(side="left", padx=10)
+        tk.Button(action_frame, text="Annulla", command=self.cancel).pack(side="left", padx=10)
+
+        self.protocol("WM_DELETE_WINDOW", self.cancel)
+        self.show_first_frame()
+        self.update_video_loop()
+
+    def show_first_frame(self):
+        ret, frame = self.cap.read()
+        if ret: self.show_frame(frame)
+
+    def update_video_loop(self):
+        if self.is_playing:
+            ret, frame = self.cap.read()
+            if ret:
+                self.current_frame_num = int(self.cap.get(cv2.CAP_PROP_POS_FRAMES))
+                self.slider_var.set(self.current_frame_num)
+                self.show_frame(frame)
+            else:
+                self.toggle_play_pause()
+        self.after(int(1000 / self.fps) if self.fps > 0 else 33, self.update_video_loop)
+
+    def show_frame(self, frame):
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        img = Image.fromarray(frame_rgb)
+        w, h = img.size
+        max_h = 720
+        if h > max_h:
+            ratio = max_h / h
+            img = img.resize((int(w * ratio), int(h * ratio)), Image.Resampling.LANCZOS)
+        
+        photo = ImageTk.PhotoImage(image=img)
+        self.video_label.config(image=photo)
+        self.video_label.image = photo # type: ignore
+        self.frame_info_label.config(text=f"Frame: {self.current_frame_num} / {self.total_frames}")
+
+    def seek(self, value):
+        if not self.is_playing:
+            self.current_frame_num = int(float(value))
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.current_frame_num)
+            ret, frame = self.cap.read()
+            if ret: self.show_frame(frame)
+
+    def toggle_play_pause(self):
+        self.is_playing = not self.is_playing
+        self.play_pause_button.config(text="Pause" if self.is_playing else "Play")
+
+    def confirm(self):
+        self.result = self.current_frame_num
+        self.cap.release()
+        self.destroy()
+
+    def cancel(self):
+        self.result = None
+        self.cap.release()
+        self.destroy()

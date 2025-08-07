@@ -1,6 +1,6 @@
 import tkinter
 import customtkinter as ctk
-from tkinter import filedialog, messagebox, TclError
+from tkinter import filedialog, messagebox, TclError, simpledialog
 import os
 import threading
 import sys
@@ -15,10 +15,11 @@ from types import SimpleNamespace
 import trim_video
 import detect_and_save_ball
 import generate_report
-from interactive_selector import InteractiveVideoSelector
+# MODIFICA: Importa entrambe le classi dal selettore interattivo
+from interactive_selector import InteractiveVideoSelector, SingleFrameSelector
 
 class StdoutRedirector:
-    """Redirige l'output della console a un widget Text di tkinter."""
+    # ... (questa classe rimane invariata)
     def __init__(self, text_widget):
         self.text_widget = text_widget
     def write(self, string):
@@ -29,27 +30,54 @@ class StdoutRedirector:
     def flush(self):
         pass
 
+# NUOVO: Una piccola classe per la finestra di dialogo di scelta
+class OnsetChoiceDialog(ctk.CTkToplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Scelta Onset")
+        self.geometry("350x150")
+        self.transient(parent)
+        self.grab_set()
+
+        self.result = None # 'manual', 'interactive', o None
+
+        label = ctk.CTkLabel(self, text="Come vuoi definire il frame di Onset?", font=ctk.CTkFont(size=14))
+        label.pack(pady=20)
+
+        button_frame = ctk.CTkFrame(self, fg_color="transparent")
+        button_frame.pack(pady=10)
+
+        manual_button = ctk.CTkButton(button_frame, text="Inserisci Manualmente", command=self.on_manual)
+        manual_button.pack(side="left", padx=10)
+
+        interactive_button = ctk.CTkButton(button_frame, text="Seleziona da Video", command=self.on_interactive)
+        interactive_button.pack(side="left", padx=10)
+    
+    def on_manual(self):
+        self.result = 'manual'
+        self.destroy()
+
+    def on_interactive(self):
+        self.result = 'interactive'
+        self.destroy()
+
 class MainApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-
+        # ... (tutta la configurazione della finestra e dei widget rimane uguale fino alla funzione load_fixed_template)
         # --- CONFIGURAZIONE FINESTRA ---
         self.title("LabSCoC - Strumento di Analisi CNA")
-        self.geometry("850x900") # Dimensione di partenza flessibile
+        self.geometry("850x900")
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
-        # --- MODIFICA: Configurazione della griglia per la scrollbar ---
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=1) # Diamo peso alla riga 0 che conterrà l'area scrollabile
+        self.grid_rowconfigure(0, weight=1)
 
-        # --- MODIFICA: Creazione di un frame scrollabile principale ---
-        # Tutti i widget (tranne il pulsante finale) andranno qui dentro.
         container = ctk.CTkScrollableFrame(self)
         container.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="nsew")
         container.grid_columnconfigure(0, weight=1)
 
-        # --- HEADER E BRANDING (dentro il container) ---
         header_frame = ctk.CTkFrame(container)
         header_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
         header_frame.grid_columnconfigure(0, weight=1)
@@ -62,12 +90,10 @@ class MainApp(ctk.CTk):
         github_link.bind("<Button-1>", lambda e: webbrowser.open_new("https://github.com/danielelozzi/neurological-assessment"))
         github_link.pack(anchor="w", padx=10, pady=(0,10))
 
-        # --- FRAME PRINCIPALE DELLE OPZIONI (dentro il container) ---
         main_frame = ctk.CTkFrame(container)
         main_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
         main_frame.grid_columnconfigure(1, weight=1)
 
-        # --- VARIABILI DI STATO ---
         self.input_dir = ctk.StringVar()
         self.output_dir = ctk.StringVar()
         self.yolo_model_path = ctk.StringVar()
@@ -86,7 +112,6 @@ class MainApp(ctk.CTk):
                     self.fast_start_frame, self.fast_end_frame, self.slow_start_frame, self.slow_end_frame]:
             var.trace_add("write", self.check_inputs_callback)
 
-        # --- Sezione Input/Output ---
         ctk.CTkLabel(main_frame, text="1. Cartella Input:").grid(row=0, column=0, padx=10, pady=10, sticky="w")
         ctk.CTkEntry(main_frame, textvariable=self.input_dir).grid(row=0, column=1, padx=10, pady=10, sticky="ew")
         ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_input_dir, width=100).grid(row=0, column=2, padx=10, pady=10)
@@ -94,7 +119,6 @@ class MainApp(ctk.CTk):
         ctk.CTkEntry(main_frame, textvariable=self.output_dir).grid(row=1, column=1, padx=10, pady=10, sticky="ew")
         ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_output_dir, width=100).grid(row=1, column=2, padx=10, pady=10)
 
-        # --- Sezione Rilevamento Automatico ---
         self.auto_detection_frame = ctk.CTkFrame(main_frame)
         self.auto_detection_frame.grid(row=2, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         self.auto_detection_frame.grid_columnconfigure(1, weight=1)
@@ -106,13 +130,15 @@ class MainApp(ctk.CTk):
         self.yolo_path_entry.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
         ctk.CTkButton(self.auto_detection_frame, text="Seleziona...", command=self.select_yolo_model, width=100).grid(row=1, column=2, padx=10, pady=10)
 
-        # --- Sezione Opzioni Manuali ---
         manual_options_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         manual_options_frame.grid(row=3, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         
         interactive_buttons_frame = ctk.CTkFrame(manual_options_frame)
         interactive_buttons_frame.pack(fill="x", pady=(5, 15))
         
+        self.fixed_template_button = ctk.CTkButton(interactive_buttons_frame, text="Carica Template a Tempi Fissi...", command=self.load_fixed_template)
+        self.fixed_template_button.pack(fill="x", padx=20, pady=(5, 10))
+
         self.interactive_segments_button = ctk.CTkButton(interactive_buttons_frame, text="Definisci Segmenti FAST/SLOW (Interattivo)", command=self.define_segments_interactively)
         self.interactive_segments_button.pack(fill="x", padx=20, pady=5)
 
@@ -141,19 +167,17 @@ class MainApp(ctk.CTk):
         self.manual_events_button = ctk.CTkButton(self.manual_events_frame, text="Seleziona...", width=100, command=self.select_manual_events_file)
         self.manual_events_button.grid(row=0, column=1, padx=10, pady=10)
 
-        # --- Sezione Analisi Aggiuntive ---
         analyses_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         analyses_frame.grid(row=4, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(analyses_frame, text="Analisi Aggiuntive:").pack(anchor="w", padx=5, pady=(10,0))
         ctk.CTkCheckBox(analyses_frame, text="Genera grafici 'Frammentazione'", variable=self.run_fragmentation_analysis).pack(anchor="w", padx=25, pady=5)
         ctk.CTkCheckBox(analyses_frame, text="Calcola metrica 'Escursione'", variable=self.run_excursion_analysis).pack(anchor="w", padx=25, pady=5)
 
-        # --- CONSOLE (dentro il container) ---
         console_frame = ctk.CTkFrame(container)
         console_frame.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
+        container.grid_rowconfigure(2, weight=1)
         console_frame.grid_columnconfigure(0, weight=1)
         console_frame.grid_rowconfigure(1, weight=1)
-        container.grid_rowconfigure(2, weight=1)
 
         ctk.CTkLabel(console_frame, text="Log di Analisi:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky="w", padx=10, pady=(5,0))
         self.console = ctk.CTkTextbox(console_frame, state="disabled", height=200)
@@ -161,16 +185,86 @@ class MainApp(ctk.CTk):
         sys.stdout = StdoutRedirector(self.console)
         sys.stderr = StdoutRedirector(self.console)
         
-        # --- PULSANTE DI AVVIO FINALE (fuori dal container, fisso in basso) ---
         self.run_button = ctk.CTkButton(self, text="Avvia Analisi Completa", command=self.start_analysis_thread, height=40, font=ctk.CTkFont(size=14, weight="bold"), state="disabled")
         self.run_button.grid(row=1, column=0, padx=20, pady=20, sticky="ew")
         
-        # --- Inizializzazione ---
         self.check_hardware_acceleration()
         self.toggle_manual_segments_frame()
         self.toggle_manual_events_frame()
         self.check_inputs()
 
+    # --- MODIFICA: La funzione per il template ora offre una scelta ---
+    def load_fixed_template(self):
+        video_path = os.path.join(self.input_dir.get(), 'video.mp4')
+        if not os.path.isdir(self.output_dir.get()) or not os.path.exists(video_path):
+            messagebox.showerror("Errore", "Seleziona prima una cartella di Input e Output valide.")
+            return
+
+        template_path = filedialog.askopenfilename(
+            title="Seleziona il file template CSV con i tempi relativi",
+            filetypes=[("CSV Files", "*.csv")]
+        )
+        if not template_path:
+            return
+
+        # Chiedi all'utente COME vuole inserire l'onset
+        choice_dialog = OnsetChoiceDialog(self)
+        self.wait_window(choice_dialog)
+        choice = choice_dialog.result
+        
+        onset_frame = None
+        if choice == 'manual':
+            onset_frame = simpledialog.askinteger(
+                "Inserisci Onset",
+                "Inserisci il numero del frame di INIZIO del segmento 'fast':",
+                parent=self
+            )
+        elif choice == 'interactive':
+            selector = SingleFrameSelector(self, video_path, title="Seleziona il frame di ONSET per FAST")
+            self.wait_window(selector)
+            onset_frame = selector.result
+
+        if onset_frame is None:
+            print("INFO: Caricamento template annullato.")
+            return
+
+        try:
+            print(f"INFO: Caricamento del template da '{template_path}' con onset al frame {onset_frame}...")
+            df_template = pd.read_csv(template_path)
+            
+            df_template['start_frame'] = df_template['relative_start'] + onset_frame
+            df_template['end_frame'] = df_template['relative_end'] + onset_frame
+
+            df_segments = df_template[df_template['event_type'] == 'segment'].copy()
+            fast_segment = df_segments[df_segments['direction'] == 'fast'].iloc[0]
+            slow_segment = df_segments[df_segments['direction'] == 'slow'].iloc[0]
+            
+            self.fast_start_frame.set(str(int(fast_segment['start_frame'])))
+            self.fast_end_frame.set(str(int(fast_segment['end_frame'])))
+            self.slow_start_frame.set(str(int(slow_segment['start_frame'])))
+            self.slow_end_frame.set(str(int(slow_segment['end_frame'])))
+            self.manual_segments_mode.set(True)
+            print("INFO: Campi dei segmenti compilati e modalità manuale attivata.")
+
+            df_trials = df_template[df_template['event_type'] == 'trial'].copy()
+            df_trials['segment_name'] = df_trials.apply(
+                lambda row: 'fast' if (row['start_frame'] >= fast_segment['start_frame'] and row['start_frame'] < fast_segment['end_frame']) else 'slow',
+                axis=1
+            )
+            df_trials.rename(columns={'direction': 'direction_simple'}, inplace=True)
+            
+            output_csv_path = os.path.join(self.output_dir.get(), "manual_events_fixed.csv")
+            df_trials[['segment_name', 'direction_simple', 'start_frame', 'end_frame']].to_csv(output_csv_path, index=False)
+            
+            self.manual_events_path.set(output_csv_path)
+            self.manual_events_mode.set(True)
+            print(f"INFO: File 'manual_events_fixed.csv' generato in '{output_csv_path}' e modalità manuale attivata.")
+
+        except Exception as e:
+            messagebox.showerror("Errore nel Template", f"Impossibile processare il file template:\n{e}")
+            traceback.print_exc()
+
+    # --- Il resto delle funzioni (define_segments_interactively, ecc.) rimane invariato ---
     def define_segments_interactively(self):
         video_path = os.path.join(self.input_dir.get(), 'video.mp4')
         if not os.path.exists(video_path):
