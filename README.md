@@ -2,9 +2,9 @@
 
 **LabSCoC (Laboratorio di Scienze Cognitive e del Comportamento)**  
 **Sito Web Lab:** [labscoc.wordpress.com](https://labscoc.wordpress.com)  
-**PI:** Prof. Giuseppe Curcio  
+**PIs:** Prof. Giuseppe Curcio, Prof. Simone Migliore
 **Concettualizzazione:** Dr. Massimo Marano  
-**Analisi:** Dr. Daniele Lozzi  
+**Codice:** Dr. Daniele Lozzi  
 
 Questo repository contiene una pipeline software completa per l'analisi del movimento oculare e della pupillometria in relazione al movimento di un cerchio su uno schermo. L'intero processo è gestito da un'unica interfaccia grafica (GUI) che orchestra l'elaborazione dei dati.
 
