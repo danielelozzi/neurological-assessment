@@ -9,20 +9,20 @@ from PIL import Image, ImageTk      # Aggiunto per gestire le immagini in Tkinte
 import concurrent.futures
 
 # --- NUOVO: Selettore di frame interattivo con video ---
-
-class InteractiveFrameSelector:
+# --- MODIFICA: La classe ora eredita da tk.Toplevel per una migliore integrazione ---
+class InteractiveFrameSelector(tk.Toplevel):
     """
     Mostra una finestra con un video player per permettere all'utente di selezionare
     interattivamente i frame di inizio per i segmenti 'fast' e 'slow'.
     """
     def __init__(self, parent, video_path):
-        self.top = tk.Toplevel(parent)
-        self.top.title("Selezione Frame Interattiva")
+        super().__init__(parent)
+        self.title("Selezione Frame Interattiva")
 
         self.video_path = video_path
         self.cap = cv2.VideoCapture(self.video_path)
         self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+        self.fps = self.cap.get(cv2.CAP_PROP_FPS) or 30 # Fallback se fps è 0
 
         # Variabili di stato
         self.fast_start_frame = None
@@ -34,7 +34,7 @@ class InteractiveFrameSelector:
         # --- Creazione Widget GUI ---
         
         # Frame principale
-        main_frame = tk.Frame(self.top)
+        main_frame = tk.Frame(self)
         main_frame.pack(padx=10, pady=10)
 
         # Etichetta per mostrare il video
@@ -76,7 +76,7 @@ class InteractiveFrameSelector:
         tk.Button(action_frame, text="Annulla", command=self.cancel).pack(side="left", padx=5)
         
         # Gestione chiusura finestra
-        self.top.protocol("WM_DELETE_WINDOW", self.cancel)
+        self.protocol("WM_DELETE_WINDOW", self.cancel)
         
         # Mostra il primo frame e avvia il ciclo di aggiornamento
         self.update_frame()
@@ -127,7 +127,7 @@ class InteractiveFrameSelector:
                 self.slider_var.set(0)
         
         # Richiama questa funzione periodicamente per creare un loop
-        self.top.after(int(1000/self.fps) if self.fps > 0 else 33, self.update_frame)
+        self.after(int(1000/self.fps), self.update_frame)
 
     def show_frame(self, frame):
         # Converte il frame di OpenCV (BGR) in un'immagine per Tkinter (RGB)
@@ -155,30 +155,28 @@ class InteractiveFrameSelector:
         self.result["fast"] = self.fast_start_frame
         self.result["slow"] = self.slow_start_frame
         self.result["cancelled"] = False
-        self.top.destroy()
+        self.destroy()
         self.cap.release()
 
     def cancel(self):
-        self.top.destroy()
+        self.destroy()
         self.cap.release()
 
 def select_frames_interactively_gui(video_path):
     """Funzione di avvio per il selettore interattivo."""
     root = tk.Tk()
     root.withdraw() # Nasconde la finestra principale di Tk
-    selector = InteractiveFrameSelector(root, video_path)
-    # Centra la finestra
-    selector.top.update_idletasks()
-    ws = selector.top.winfo_screenwidth()
-    hs = selector.top.winfo_screenheight()
-    x = (ws/2) - (selector.top.winfo_width()/2)
-    y = (hs/2) - (selector.top.winfo_height()/2)
-    selector.top.geometry('%dx%d+%d+%d' % (selector.top.winfo_width(), selector.top.winfo_height(), x, y))
     
-    selector.top.transient(root)
-    selector.top.grab_set()
-    root.wait_window(selector.top)
-    root.destroy()
+    # Crea il selettore come una finestra Toplevel
+    selector = InteractiveFrameSelector(parent=root, video_path=video_path)
+    selector.transient(root)
+    selector.grab_set()
+    
+    # Attende che la finestra del selettore venga chiusa
+    root.wait_window(selector)
+    
+    # Distrugge la finestra radice nascosta solo dopo che il lavoro è finito
+    root.destroy() 
     return selector.result
 
 # --- Pipeline di pre-elaborazione OCR ---
