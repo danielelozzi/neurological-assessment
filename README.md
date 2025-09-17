@@ -51,11 +51,23 @@ Hai tre modi per definire i punti di inizio e fine dei segmenti principali:
 Hai tre modi per specificare ogni singolo movimento (destra, sinistra, ecc.) all'interno dei segmenti:
 
 #### Metodo 1: Template a Tempi Fissi (Nuovo & Consigliato per Paradigmi Standard)
-- Clicca il pulsante **"Carica Template a Tempi Fissi..."**.
-- Ti verrà chiesto di selezionare un file CSV "template" con i tempi relativi di tutti gli eventi.
-- Successivamente, potrai inserire il frame di "onset" (l'inizio di "fast") sia manualmente che tramite un selettore video.
-- Il programma calcolerà tutti i tempi assoluti e configurerà l'analisi in modo completamente automatico.
+Questa modalità è la più potente e precisa per analizzare esperimenti che seguono una temporizzazione predefinita e ripetibile. Permette di saltare completamente la ricerca automatica e l'etichettatura manuale, garantendo massima coerenza tra le analisi.
 
+**Come funziona:**
+1.  **Crea il Template una Sola Volta**: Per un dato paradigma sperimentale, si crea un unico file CSV (es. `template_standard.csv`) che descrive la temporizzazione di tutti gli eventi. I tempi in questo file sono **relativi** a un punto "zero", che per convenzione è l'inizio del segmento `fast`.
+2.  **Carica il Template**: Dalla GUI, clicca su **"Carica Template a Tempi Fissi..."** e seleziona il tuo file template.
+3.  **Definisci l'Onset**: Questo è l'unico passaggio manuale richiesto. Il software ti chiederà di specificare a quale frame del video corrisponde il punto "zero" del template (l'**onset**). Puoi farlo in due modi:
+    - **Inserisci Manualmente**: Digitando il numero esatto del frame.
+    - **Seleziona da Video**: Usando un player interattivo per trovare e cliccare sul frame esatto.
+4.  **Configurazione Automatica**: Una volta definito l'onset, il software esegue tutto in automatico:
+    - **Calcola i Tempi Assoluti**: Somma il frame di onset a tutti i tempi relativi presenti nel template.
+    - **Imposta i Segmenti**: Compila automaticamente i campi di inizio/fine per i segmenti "fast" e "slow" e attiva la modalità "Definisci Segmenti Manualmente".
+    - **Crea il File Eventi**: Genera un nuovo file CSV (es. `manual_events_fixed.csv`) nella cartella di output con i tempi assoluti di ogni trial.
+    - **Imposta gli Eventi**: Compila automaticamente il percorso di questo nuovo file e attiva la modalità "Carica Eventi da File CSV".
+
+A questo punto, l'intera analisi è pre-configurata con la massima precisione. Basta cliccare su "Avvia Analisi Completa".
+
+---
 #### Metodo 2: Interattivo
 - Clicca il pulsante **"Definisci Eventi UP/DOWN/LEFT/RIGHT (Interattivo)"**.
 - Si aprirà il video player. Potrai definire l'inizio e la fine di ogni trial, etichettandolo (es. "right", "left").
