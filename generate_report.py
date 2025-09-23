@@ -272,6 +272,15 @@ def calculate_excursion(df_input, success_threshold):
     print(f"  - ✅ Calcolo 'Escursione' completato per {len(excursion_data)} trial.")
     return df_output
 
+def calculate_running_gaze_in_box_percentage(df_input):
+    """Calcola la percentuale progressiva di gaze_in_box per ogni trial."""
+    if 'trial_id' not in df_input.columns: return df_input
+    
+    df_input['running_gaze_in_box_perc'] = df_input.groupby('trial_id')['gaze_in_box'].transform(
+        lambda x: (x.cumsum() / (np.arange(len(x)) + 1)) * 100
+    )
+    return df_input
+
 def calculate_directional_excursion(df_input, margin_perc):
     """
     Calcola se lo sguardo ha superato la massima escursione della palla per ogni trial,
@@ -288,6 +297,9 @@ def calculate_directional_excursion(df_input, margin_perc):
     
     df_trials_only = df_input[df_input['trial_id'] > 0].copy()
     
+    # Aggiungiamo colonne per la linea di escursione
+    df_input['dir_ex_line_coord'] = np.nan
+
     # Funzione che verrà applicata a ogni gruppo (trial)
     def check_reach(group):
         direction = group['direction_simple'].iloc[0]
@@ -297,30 +309,37 @@ def calculate_directional_excursion(df_input, margin_perc):
             idx_min = group['ball_center_y_norm'].idxmin()
             ball_top_edge = group.loc[idx_min, 'ball_center_y_norm'] - (group.loc[idx_min, 'ball_h_norm'] / 2)
             # La soglia è il bordo superiore della palla + un margine verso il centro
-            threshold_line = ball_top_edge + margin_perc
-            return (group['gaze_y_norm'] <= threshold_line).any()
+            threshold_line_norm = ball_top_edge + margin_perc
+            # Salva la coordinata della linea per il frame di massima escursione
+            group.loc[idx_min, 'dir_ex_line_coord'] = threshold_line_norm * group['frame_height'].iloc[0]
+            return (group['gaze_y_norm'] <= threshold_line_norm).any()
             
         elif direction == 'down':
             idx_max = group['ball_center_y_norm'].idxmax()
             ball_bottom_edge = group.loc[idx_max, 'ball_center_y_norm'] + (group.loc[idx_max, 'ball_h_norm'] / 2)
-            threshold_line = ball_bottom_edge - margin_perc
-            return (group['gaze_y_norm'] >= threshold_line).any()
+            threshold_line_norm = ball_bottom_edge - margin_perc
+            group.loc[idx_max, 'dir_ex_line_coord'] = threshold_line_norm * group['frame_height'].iloc[0]
+            return (group['gaze_y_norm'] >= threshold_line_norm).any()
 
         elif direction == 'left':
             idx_min = group['ball_center_x_norm'].idxmin()
             ball_left_edge = group.loc[idx_min, 'ball_center_x_norm'] - (group.loc[idx_min, 'ball_w_norm'] / 2)
-            threshold_line = ball_left_edge + margin_perc
-            return (group['gaze_x_norm'] <= threshold_line).any()
+            threshold_line_norm = ball_left_edge + margin_perc
+            group.loc[idx_min, 'dir_ex_line_coord'] = threshold_line_norm * group['frame_width'].iloc[0]
+            return (group['gaze_x_norm'] <= threshold_line_norm).any()
 
         elif direction == 'right':
             idx_max = group['ball_center_x_norm'].idxmax()
             ball_right_edge = group.loc[idx_max, 'ball_center_x_norm'] + (group.loc[idx_max, 'ball_w_norm'] / 2)
-            threshold_line = ball_right_edge - margin_perc
-            return (group['gaze_x_norm'] >= threshold_line).any()
+            threshold_line_norm = ball_right_edge - margin_perc
+            group.loc[idx_max, 'dir_ex_line_coord'] = threshold_line_norm * group['frame_width'].iloc[0]
+            return (group['gaze_x_norm'] >= threshold_line_norm).any()
             
         return False
 
-    dir_excursion_data = df_trials_only.groupby('trial_id').apply(check_reach).reset_index(name='directional_excursion_success')
+    # Applica la funzione e ottieni i successi e le linee
+    results = df_trials_only.groupby('trial_id').apply(check_reach)
+    dir_excursion_data = results.reset_index(name='directional_excursion_success')
     dir_excursion_data['directional_excursion_reached'] = dir_excursion_data['directional_excursion_success'].astype(float)
 
     df_output = df_input.merge(dir_excursion_data, on='trial_id', how='left')
@@ -331,6 +350,17 @@ def main(args):
     analysis_path = os.path.join(args.analysis_dir, 'output_final_analysis_analysis.csv')
     cuts_path = os.path.join(args.analysis_dir, 'cut_points.csv')
     df_main = pd.read_csv(analysis_path)
+
+    # Aggiungi dimensioni del frame per calcoli futuri
+    w, h = get_video_dimensions(os.path.join(args.input_dir_for_pupil, 'video.mp4'))
+    df_main['frame_width'] = w
+    df_main['frame_height'] = h
+
+    # --- CORREZIONE: Unisci i dati dei segmenti al dataframe principale ---
+    df_cuts = pd.read_csv(cuts_path)
+    df_main['segment_name'] = ''
+    for _, row in df_cuts.iterrows():
+        df_main.loc[(df_main['frame'] >= row['start_frame']) & (df_main['frame'] <= row['end_frame']), 'segment_name'] = row['segment_name']
     df_cuts = pd.read_csv(cuts_path)
 
     if hasattr(args, 'manual_events_path') and args.manual_events_path and os.path.exists(args.manual_events_path):
@@ -347,6 +377,10 @@ def main(args):
     writer = pd.ExcelWriter(os.path.join(args.output_dir, 'final_report.xlsx'), engine='xlsxwriter')
 
     expected_sequences = {'fast': ['right','left','right','up','down','up']*3, 'slow': ['right','left','right','up','down','up','down','up','right','left','right','up','down','up','down','right','left','right','up','down']}
+    
+    # --- NUOVO: Calcola le metriche sull'intero dataframe prima di splittare ---
+    if args.run_excursion_analysis:
+        df_main = calculate_running_gaze_in_box_percentage(df_main)
     general_summary_list = []
 
     # Esegui l'analisi di frammentazione sull'intero dataset, se richiesto
@@ -358,7 +392,6 @@ def main(args):
         df_segment = df_main[(df_main['frame'] >= cut_row['start_frame']) & (df_main['frame'] <= cut_row['end_frame'])].copy()
         
         if df_segment.empty: continue
-        w, h = get_video_dimensions(os.path.join(args.output_dir, f'final_video_{segment_name}.mp4'))
         df_center_out = df_segment[df_segment['trial_id'] > 0].copy()
         if df_center_out.empty:
             print(f"INFO: Nessun trial valido trovato nel segmento '{segment_name}'.")
@@ -369,13 +402,17 @@ def main(args):
 
         # Esegui il calcolo dell'escursione, se richiesto
         if args.run_excursion_analysis:
-            # Calcola le metriche
-            df_with_excursion = calculate_excursion(df_center_out.copy(), args.excursion_success_threshold)
-            df_with_directional_excursion = calculate_directional_excursion(df_center_out.copy(), args.directional_excursion_edge_threshold)
+            # Calcola le metriche e le unisce al dataframe principale
+            df_excursion = calculate_excursion(df_main.copy(), args.excursion_success_threshold)
+            df_directional = calculate_directional_excursion(df_main.copy(), args.directional_excursion_edge_threshold)
+
+            # --- CORREZIONE: Unisci i risultati usando 'trial_id' come chiave ---
+            df_main = df_main.merge(df_excursion[['trial_id', 'excursion_perc_frames', 'excursion_success']].drop_duplicates('trial_id'), on='trial_id', how='left')
+            df_main = df_main.merge(df_directional[['trial_id', 'dir_ex_line_coord', 'directional_excursion_reached', 'directional_excursion_success']].drop_duplicates('trial_id'), on='trial_id', how='left')
             
-            # Unisci i risultati al dataframe principale dei trial
-            df_center_out = df_center_out.merge(df_with_excursion[['trial_id', 'excursion_perc_frames', 'excursion_success']].drop_duplicates(), on='trial_id', how='left')
-            df_center_out = df_center_out.merge(df_with_directional_excursion[['trial_id', 'directional_excursion_reached', 'directional_excursion_success']].drop_duplicates(), on='trial_id', how='left')
+            # Aggiorna i dataframe di segmento e trial con le nuove colonne
+            df_segment = df_main[(df_main['frame'] >= cut_row['start_frame']) & (df_main['frame'] <= cut_row['end_frame'])].copy()
+            df_center_out = df_segment[df_segment['trial_id'] > 0].copy()
 
         # Dizionario per aggregare i dati
         agg_dict = {
@@ -430,4 +467,10 @@ def main(args):
         pd.DataFrame(general_summary_list).to_excel(writer, sheet_name="Riepilogo_Generale", index=False)
     
     writer.close()
+
+    # --- NUOVO: Salva il dataframe completo di metriche per la generazione video ---
+    final_csv_path = os.path.join(args.output_dir, 'output_final_analysis_with_metrics.csv')
+    df_main.to_csv(final_csv_path, index=False)
+    print(f"\nINFO: Dati di analisi completi con metriche salvati in '{final_csv_path}'")
+
     print("\nINFO: Report Excel 'final_report.xlsx' generato con successo.")

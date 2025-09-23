@@ -15,6 +15,7 @@ from types import SimpleNamespace
 import trim_video
 import detect_and_save_ball
 import generate_report
+import generate_video
 # MODIFICA: Importa entrambe le classi dal selettore interattivo
 from interactive_selector import InteractiveVideoSelector, SingleFrameSelector
 
@@ -591,6 +592,16 @@ class MainApp(ctk.CTk):
             )
             generate_report.main(args_report)
             
+            # --- NUOVO: FASE 3 - Generazione Video con Overlay ---
+            args_video = SimpleNamespace(
+                input_video=os.path.join(self.input_dir.get(), 'video.mp4'),
+                output_dir=self.output_dir.get(),
+                # Il file CSV generato da generate_report.py
+                analysis_csv=os.path.join(self.output_dir.get(), 'output_final_analysis_with_metrics.csv'),
+                surface_positions=os.path.join(self.input_dir.get(), 'surface_positions.csv')
+            )
+            generate_video.main(args_video)
+
             print("\n====== ANALISI COMPLETATA CON SUCCESSO ======")
             success = True
 

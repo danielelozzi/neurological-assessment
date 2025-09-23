@@ -183,10 +183,7 @@ def main(args):
     # Inizializzazione video
     cap = cv2.VideoCapture(input_video_path)
     if not cap.isOpened():
-        raise IOError(f"Errore: Impossibile aprire il video {input_video_path}")
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    
-    os.makedirs(args.output_dir, exist_ok=True)
+        raise IOError(f"Errore: Impossibile aprire il video {input_video_path}")    
     analysis_results = []
 
     # Ciclo principale sui segmenti (fast/slow)
@@ -197,10 +194,7 @@ def main(args):
 
         print(f"\n--- Elaborazione del segmento: '{segment_name}' (Frame {start_frame}-{end_frame}) ---")
 
-        cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
-        
-        # CORREZIONE: 'out' e le dimensioni vengono gestite DENTRO il ciclo per robustezza
-        out = None
+        cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)        
         output_width, output_height = 0, 0
         hough_params, params_found = None, False
 
@@ -227,8 +221,7 @@ def main(args):
             try:
                 src_pts = np.array([[crop_info[f'{corner} x [px]'].iloc[0], crop_info[f'{corner} y [px]'].iloc[0]] for corner in ['tl', 'tr', 'br', 'bl']], dtype=np.float32)
                 
-                # CORREZIONE: Inizializza il writer video solo al primo frame valido
-                if out is None:
+                if output_width == 0: # Calcola le dimensioni solo una volta
                     w1 = np.linalg.norm(src_pts[0] - src_pts[1])
                     w2 = np.linalg.norm(src_pts[3] - src_pts[2])
                     output_width = int(max(w1, w2))
@@ -241,26 +234,14 @@ def main(args):
                         print(f"ATTENZIONE: Dimensioni del frame non valide ({output_width}x{output_height}), salto il frame {frame_count}")
                         frame_count += 1
                         continue
-                    
-                    print(f"Dimensioni video di output per '{segment_name}': {output_width}x{output_height}")
-                    output_video_path = os.path.join(args.output_dir, f"final_video_{segment_name}.mp4")
-                    # CORREZIONE: Sintassi corretta per VideoWriter.fourcc
-                    fourcc = cv2.VideoWriter.fourcc(*'mp4v')
-                    out = cv2.VideoWriter(output_video_path, fourcc, fps, (output_width, output_height))
 
                 # Ora che le dimensioni sono note, calcola la trasformazione
                 dst_pts = np.array([[0, 0], [output_width - 1, 0], [output_width - 1, output_height - 1], [0, output_height - 1]], dtype=np.float32)
                 matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
                 warped_frame = cv2.warpPerspective(original_frame, matrix, (output_width, output_height))
-                warped_frame = cv2.convertScaleAbs(warped_frame)
 
             except Exception as e:
                 print(f"Errore di elaborazione prospettiva al frame {frame_count}: {e}")
-                frame_count += 1
-                continue
-            
-            # Se la trasformazione non è riuscita o il video non è inizializzato, salta il resto
-            if warped_frame is None or out is None:
                 frame_count += 1
                 continue
 
@@ -279,12 +260,13 @@ def main(args):
 
             # Logica per disegnare overlay (direzione, gaze, box)
             gaze_in_box_status, gaze_color = False, (0, 0, 255)
+            enlarged_bbox_coords = {'x': np.nan, 'y': np.nan, 'w': np.nan, 'h': np.nan}
             if ball_bbox is not None:
                 x, y, w, h = ball_bbox
                 w_new, h_new = w * args.bbox_padding_factor, h * args.bbox_padding_factor
                 x_new, y_new = x - (w_new - w) / 2, y - (h_new - h) / 2
                 enlarged_bbox = (int(x_new), int(y_new), int(w_new), int(h_new))
-                cv2.rectangle(warped_frame, (enlarged_bbox[0], enlarged_bbox[1]), (enlarged_bbox[0] + enlarged_bbox[2], enlarged_bbox[1] + enlarged_bbox[3]), (255, 0, 0), 2)
+                enlarged_bbox_coords = {'x': enlarged_bbox[0], 'y': enlarged_bbox[1], 'w': enlarged_bbox[2], 'h': enlarged_bbox[3]}
                 
                 ex, ey, ew, eh = enlarged_bbox
                 if pd.notna(gaze_info['gaze_x_norm']) and pd.notna(gaze_info['gaze_y_norm']):
@@ -292,10 +274,6 @@ def main(args):
                     if (ex <= gaze_px <= ex + ew) and (ey <= gaze_py <= ey + eh):
                         gaze_in_box_status, gaze_color = True, (0, 255, 255)
             
-            if pd.notna(gaze_info['gaze_x_norm']) and pd.notna(gaze_info['gaze_y_norm']):
-                gaze_px, gaze_py = int(gaze_info['gaze_x_norm'] * output_width), int(gaze_info['gaze_y_norm'] * output_height)
-                cv2.circle(warped_frame, (gaze_px, gaze_py), 10, gaze_color, -1)
-
             # Calcolo delle dimensioni normalizzate della palla
             norm_ball_w, norm_ball_h = np.nan, np.nan
             if ball_bbox is not None:
@@ -307,22 +285,17 @@ def main(args):
             result_data = {
                 'frame': frame_count, 'ball_center_x_norm': norm_ball_x, 'ball_center_y_norm': norm_ball_y,
                 'ball_w_norm': norm_ball_w, 'ball_h_norm': norm_ball_h, 'gaze_x_norm': gaze_info['gaze_x_norm'],
-                'gaze_y_norm': gaze_info['gaze_y_norm'], 'gaze_in_box': gaze_in_box_status
+                'gaze_y_norm': gaze_info['gaze_y_norm'], 'gaze_in_box': gaze_in_box_status,
+                'enlarged_bbox_x': enlarged_bbox_coords['x'], 'enlarged_bbox_y': enlarged_bbox_coords['y'],
+                'enlarged_bbox_w': enlarged_bbox_coords['w'], 'enlarged_bbox_h': enlarged_bbox_coords['h'],
+                'segment_name': segment_name
             }
             analysis_results.append(result_data)
 
-            # Scrittura del frame nel video di output
-            out.write(warped_frame)
             frame_count += 1
-
-        # Rilascio del writer per il segmento corrente
-        if out:
-            out.release()
-            print(f"Video corretto per '{segment_name}' salvato.")
 
     # Chiusura finale
     cap.release()
-    cv2.destroyAllWindows()
 
     if analysis_results:
         coords_df = pd.DataFrame(analysis_results)

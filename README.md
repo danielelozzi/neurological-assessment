@@ -90,7 +90,7 @@ La GUI presenta una sezione dedicata ai "Parametri di Analisi" che permette di a
 
 - **Soglia Successo Escursione (%)**: Definisce la percentuale minima di tempo che lo sguardo deve passare all'interno del box di inseguimento affinché un trial sia considerato "di successo" per la metrica `escursione_successo_perc`. Il default è 80%.
 
-- **Soglia Bordo Esc. Direzionale (%)**: Definisce un margine di tolleranza per la metrica di "Escursione Direzionale". Questo valore (espresso come percentuale della dimensione dello schermo) viene aggiunto al bordo più esterno della palla per creare una "linea di successo" dinamica. Un valore più alto rende il test più permissivo. Il default è 15%.
+- **Soglia Bordo Esc. Direzionale (%)**: Definisce un margine di tolleranza per la metrica di "Escursione Direzionale". Questo valore (espresso come percentuale della dimensione dello schermo) viene usato per creare una "linea del traguardo" dinamica. Un valore più alto rende il test più permissivo, spostando la linea verso il centro. Il default è 15%.
 
 Questi parametri vengono passati agli script di analisi quando si clicca su "Avvia Analisi Completa".
 
@@ -199,9 +199,9 @@ Questo foglio è il punto di partenza ideale. Offre un confronto diretto delle m
 | **`velocita_sguardo_media`** | **Cosa misura:** La velocità media dello sguardo durante i trial. <br> **Come si calcola:** È la media della colonna `gaze_speed`. La velocità istantanea (`gaze_speed`) è calcolata come la distanza euclidea tra le coordinate normalizzate dello sguardo in due frame consecutivi. |
 | **`numero_trial_validi`** | **Cosa misura:** Il numero totale di movimenti (trial) validi che il software ha identificato in quel segmento. <br> **Come si calcola:** È il conteggio dei valori unici di `trial_id` maggiori di zero. |
 | **`diametro_pupillare_medio`** | **Cosa misura:** Il diametro medio della pupilla (in mm) durante tutti i trial del segmento. <br> **Come si calcola:** È la media della colonna `pupil_diameter_mean`. Questa metrica è presente solo se i dati pupillari sono disponibili. |
-| **`escursione_successo_perc`** | **Cosa misura:** La percentuale di trial considerati "di successo" in termini di completamento della traiettoria. <br> **Come si calcola:** Un trial è un "successo" se la metrica `gaze_in_box` è stata `True` per almeno l'80% della sua durata. Questa colonna mostra la percentuale di trial che hanno superato tale soglia. È presente solo se l'analisi "Escursione" è attiva. |
+| **`escursione_successo_perc`** | **Cosa misura:** La percentuale di trial in cui l'inseguimento della palla è stato sufficientemente preciso. <br> **Come si calcola:** Un trial è un "successo" se lo sguardo è rimasto nel box di tolleranza della palla per una percentuale di tempo superiore alla "Soglia Successo Escursione" (impostata nella GUI, default 80%). |
 | **`escursione_perc_frames_media`** | **Cosa misura:** La percentuale media di completamento della traiettoria (inseguimento della palla) per ogni trial. <br> **Come si calcola:** Per ogni trial, si calcola la percentuale di frame in cui lo sguardo era nel box. Questa colonna è la media di tali percentuali su tutti i trial del segmento. È presente solo se l'analisi "Escursione" è attiva. |
-| **`escursione_direzionale_successo_perc`** | **Cosa misura:** La percentuale di trial in cui lo sguardo ha raggiunto l'escursione massima della palla. <br> **Come si calcola:** Per ogni trial, il software identifica la posizione più estrema raggiunta dalla palla e calcola una "linea di successo" dinamica basata sul bordo esterno della palla in quel punto, più un margine di tolleranza (configurabile dalla GUI). Un trial è un successo se lo sguardo supera questa linea. |
+| **`escursione_direzionale_successo_perc`** | **Cosa misura:** La percentuale di trial in cui lo sguardo ha raggiunto la destinazione finale del movimento. <br> **Come si calcola:** Per ogni trial, il software identifica la posizione più estrema raggiunta dalla palla e definisce una "linea del traguardo" dinamica. Un trial è un successo se lo sguardo, in almeno un frame, supera questa linea (considerando il margine di tolleranza impostato nella GUI). |
 | **`escursione_direzionale_raggiunta_perc_media`** | **Cosa misura:** La media del successo direzionale, espressa come valore tra 0 e 1. <br> **Come si calcola:** È la media della colonna `directional_excursion_reached` (che vale 1 per successo, 0 per fallimento). Il valore è numericamente equivalente a `escursione_direzionale_successo_perc / 100`. |
 
 ---
@@ -217,9 +217,9 @@ Questi fogli "spaccano" i dati del riepilogo generale, mostrando le performance 
 | **`avg_gaze_speed`** | **Cosa misura:** La velocità media dello sguardo solo per i trial di una specifica direzione. <br> **Come si calcola:** È la media di `gaze_speed` per tutti i frame dei trial che vanno in quella direzione. |
 | **`trial_count`** | **Cosa misura:** Il numero di trial eseguiti in quella specifica direzione. <br> **Come si calcola:** Conteggio dei trial unici per quella direzione. |
 | **`avg_pupil_diameter`** | **Cosa misura:** Il diametro pupillare medio solo per i trial di una specifica direzione. <br> **Come si calcola:** Media di `pupil_diameter_mean` per i trial di quella direzione. |
-| **`excursion_success_perc`** | **Cosa misura:** La percentuale di trial di successo per una specifica direzione. <br> **Come si calcola:** Percentuale di trial in quella direzione che superano la soglia di `gaze_in_box`. |
+| **`excursion_success_perc`** | **Cosa misura:** La percentuale di trial di successo (inseguimento) per una specifica direzione. <br> **Come si calcola:** Percentuale di trial in quella direzione che superano la soglia di `gaze_in_box`. |
 | **`avg_excursion_perc_frames`** | **Cosa misura:** La percentuale media di completamento dell'inseguimento per i trial di una specifica direzione. <br> **Come si calcola:** Media delle percentuali di completamento per ogni trial di quella direzione. |
-| **`directional_excursion_success_perc`** | **Cosa misura:** La percentuale di trial di successo direzionale per una specifica direzione. <br> **Come si calcola:** Percentuale di trial in quella direzione in cui lo sguardo ha superato la linea di successo dinamica basata sulla palla. |
+| **`directional_excursion_success_perc`** | **Cosa misura:** La percentuale di trial di successo (raggiungimento destinazione) per una specifica direzione. <br> **Come si calcola:** Percentuale di trial in quella direzione in cui lo sguardo ha superato la linea del traguardo dinamica. |
 | **`avg_directional_excursion_reached`** | **Cosa misura:** La media del successo direzionale per i trial di una specifica direzione. <br> **Come si calcola:** Media di `directional_excursion_reached` per i trial di quella direzione. |
 
 ---
@@ -241,5 +241,5 @@ Questi sono i fogli più granulari e contengono i dati calcolati per ogni singol
 | **`pupil_diameter_mean`** | Diametro pupillare (mm) sincronizzato a quel frame. |
 | **`excursion_perc_frames`** | Percentuale di completamento del trial a cui questo frame appartiene (è lo stesso valore per tutti i frame dello stesso `trial_id`). |
 | **`excursion_success`** | Valore booleano (`True`/`False`) che indica se il trial a cui questo frame appartiene è stato un successo di inseguimento (è lo stesso valore per tutti i frame dello stesso `trial_id`). |
-| **`directional_excursion_reached`** | Valore numerico (1.0/0.0) che indica se il trial a cui questo frame appartiene ha raggiunto il bordo corretto. |
-| **`directional_excursion_success`** | Valore booleano (`True`/`False`) che indica se il trial a cui questo frame appartiene è stato un successo direzionale. |
+| **`directional_excursion_reached`** | Valore numerico (1.0/0.0) che indica se il trial a cui questo frame appartiene ha raggiunto la destinazione. |
+| **`directional_excursion_success`** | Valore booleano (`True`/`False`) che indica se il trial a cui questo frame appartiene è stato un successo di raggiungimento della destinazione. |
