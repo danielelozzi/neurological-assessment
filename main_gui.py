@@ -210,29 +210,12 @@ class MainApp(ctk.CTk):
         except Exception as e:
             messagebox.showerror("Errore Lettura File", f"Impossibile leggere o validare il file CSV:\n{e}")
             return
-
-        # Chiedi all'utente COME vuole inserire l'onset
-        choice_dialog = OnsetChoiceDialog(self)
-        self.wait_window(choice_dialog)
-        choice = choice_dialog.result
         
         # Tentativo di caricare anche gli eventi "main" dal template
         try:
             print(f"INFO: Tentativo di caricamento eventi 'main' da '{template_path}'...")
             df_template_main = pd.read_csv(template_path)
             df_segments = df_template_main[df_template_main['event_type'] == 'segment'].copy()
-            if not df_segments.empty:
-                fast_segment = df_segments[df_segments['direction'] == 'fast'].iloc[0]
-                slow_segment = df_segments[df_segments['direction'] == 'slow'].iloc[0]
-
-                self.fast_start_frame.set(str(int(fast_segment['relative_start'])))
-                self.fast_end_frame.set(str(int(fast_segment['relative_end'])))
-                self.slow_start_frame.set(str(int(slow_segment['relative_start'])))
-                self.slow_end_frame.set(str(int(slow_segment['relative_end'])))
-
-                print("INFO: Eventi 'main' caricati dal template (tempi relativi).")
-            else:
-                print("INFO: Nessun evento 'main' trovato nel template.")
         except Exception as e:
             print(f"ATTENZIONE: Errore nel caricamento degli eventi 'main' dal template: {e}")
 
@@ -242,12 +225,6 @@ class MainApp(ctk.CTk):
         choice = choice_dialog.result
 
         onset_frame = None
-        if choice == 'manual':
-            onset_frame = simpledialog.askinteger(
-                "Inserisci Onset",
-                "Inserisci il numero del frame di INIZIO del segmento 'fast':",
-                onset_frame = None
-            )
         if choice == 'manual':
             onset_frame = simpledialog.askinteger(
                 "Inserisci Onset",
@@ -278,7 +255,6 @@ class MainApp(ctk.CTk):
             self.fast_end_frame.set(str(int(fast_segment['end_frame'])))
             self.slow_start_frame.set(str(int(slow_segment['start_frame'])))
             self.slow_end_frame.set(str(int(slow_segment['end_frame'])))
-            self.manual_segments_mode.set(True)
             print("INFO: Campi dei segmenti compilati e modalità manuale attivata.")
             df_trials = df_template[df_template['event_type'] == 'trial'].copy()
             df_trials['segment_name'] = df_trials.apply(

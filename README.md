@@ -27,30 +27,11 @@ Questa è la modalità standard. Il software esegue l'intera pipeline con il min
 ### 2. Modalità Ibrida e Manuale
 Per un controllo granulare, è possibile definire manualmente sia i segmenti che gli eventi di movimento direttamente dalla GUI, anche in modo combinato.
 
----
-
-### A. Definire i Segmenti (Fast/Slow)
-Hai tre modi per definire i punti di inizio e fine dei segmenti principali:
-
-#### Metodo 1: Interattivo (Consigliato)
-- Clicca il pulsante **"Definisci Segmenti FAST/SLOW (Interattivo)"** sulla GUI.
-- Si aprirà un video player che ti permetterà di scorrere il video, trovare i punti esatti di inizio e fine per "fast" e "slow" e salvarli.
-- Una volta chiusa la finestra, i campi di testo nella GUI verranno compilati automaticamente.
-
-#### Metodo 2: Testuale
-- Attiva la checkbox **"Definisci Segmenti Manualmente (Testuale)"**.
-- Appariranno quattro campi per inserire i numeri di frame esatti di INIZIO e FINE per i segmenti.
-- Questa modalità salta completamente la ricerca automatica.
-
-#### Metodo 3: Fallback Automatico
-- Lascia tutte le opzioni manuali disattivate. Se la ricerca OCR automatica fallisce, il programma ti mostrerà automaticamente il selettore video interattivo, come descritto nel Metodo 1.
+La GUI è organizzata in sezioni per gestire i dati in modo intuitivo. Di seguito sono descritte le principali modalità di lavoro manuali e ibride.
 
 ---
 
-### B. Definire gli Eventi di Movimento (Trial)
-Hai tre modi per specificare ogni singolo movimento (destra, sinistra, ecc.) all'interno dei segmenti:
-
-#### Metodo 1: Template a Tempi Fissi (Nuovo & Consigliato per Paradigmi Standard)
+### A. Template a Tempi Fissi (Consigliato per Paradigmi Standard)
 Questa modalità è la più potente e precisa per analizzare esperimenti che seguono una temporizzazione predefinita e ripetibile. Permette di saltare completamente la ricerca automatica e l'etichettatura manuale, garantendo massima coerenza tra le analisi.
 
 **Come funziona:**
@@ -68,31 +49,41 @@ Questa modalità è la più potente e precisa per analizzare esperimenti che seg
 A questo punto, l'intera analisi è pre-configurata con la massima precisione. Basta cliccare su "Avvia Analisi Completa".
 
 ---
-#### Metodo 2: Interattivo
+
+### B. Definizione Interattiva
+Questa modalità ti dà il pieno controllo visivo sull'analisi.
+
+#### 1. Definire i Segmenti (Fast/Slow)
+- Clicca il pulsante **"Definisci Segmenti FAST/SLOW (Interattivo)"**.
+- Si aprirà un video player che ti permetterà di scorrere il video, definire l'inizio e la fine per i segmenti "fast" e "slow" e confermare.
+- Una volta chiusa la finestra, i campi interni del programma verranno compilati e l'analisi userà questi valori, saltando la ricerca automatica.
+
+#### 2. Definire gli Eventi di Movimento (Trial)
 - Clicca il pulsante **"Definisci Eventi UP/DOWN/LEFT/RIGHT (Interattivo)"**.
 - Si aprirà il video player. Potrai definire l'inizio e la fine di ogni trial, etichettandolo (es. "right", "left").
-- Al termine, il programma ti chiederà di **salvare le annotazioni in un file .csv**.
+- Al termine, il programma ti chiederà di **salvare le annotazioni in un file .csv** (es. `manual_events.csv`).
 - Il percorso di questo file verrà inserito automaticamente nella GUI, pronto per essere usato nell'analisi.
 
-#### Metodo 3: Tramite File CSV
-- Prepara un file `.csv` con le specifiche di ogni trial.
+---
+
+### C. Caricare e Salvare File di Eventi
+Questa modalità è utile per riutilizzare definizioni già create o per preparare l'analisi in anticipo.
+
+#### 1. Caricare/Salvare Segmenti (Fast/Slow)
+- **Carica**: Usa **"Carica Segmenti FAST/SLOW (da CSV)"** per caricare un file `.csv` con i frame di inizio e fine dei segmenti.
+- **Salva**: Usa **"Salva Segmenti FAST/SLOW (CSV Assoluto)"** per salvare i segmenti attualmente definiti (automaticamente o manualmente) in un file `.csv`.
+
+#### 2. Caricare Eventi di Movimento (Trial)
+- Prepara un file `.csv` con le specifiche di ogni trial (vedi formato sotto).
 - Clicca su **"Carica Eventi U/D/L/R (da CSV)"** e seleziona il tuo file.
-- Il programma salterà l'identificazione automatica dei movimenti e userà i dati del tuo file per generare il report.
+- Il programma salterà l'identificazione automatica dei movimenti e userà i dati del tuo file.
+
+#### 3. Salvare un Template Relativo
+- Dopo aver completato un'analisi (definendo segmenti e trial), puoi salvarla come un nuovo template riutilizzabile tramite **"Salva Template Relativo Corrente (in CSV)"**. Il software ti chiederà di definire un punto "zero" (onset) e convertirà tutti i tempi assoluti in relativi.
 
 ---
 
-### C. Salvare e Caricare Template ed Eventi
-
-La GUI è organizzata in sezioni per gestire i dati in modo intuitivo:
-- **Template Relativi**: Per caricare un paradigma sperimentale standard o salvare l'analisi corrente come un nuovo template riutilizzabile.
-- **Eventi Assoluti (Carica/Salva)**: Per caricare o salvare file CSV con i frame **assoluti** di segmenti (`fast`/`slow`) o trial (`up`/`down`/`left`/`right`). È utile per riprendere un'analisi o usare definizioni già pronte.
-- **Definizione Interattiva**: Per definire segmenti e trial visivamente tramite un video player. Al termine, il programma ti chiederà di salvare gli eventi dei trial in un file `manual_events.csv`.
-
-> **Nota importante**: Il salvataggio dei singoli trial (`up`/`down`/`left`/`right`) in un file `manual_events.csv` è parte integrante del flusso di lavoro della **"Definizione Interattiva"**.
-
----
-
-### D. Formato dei File CSV
+### D. Formati dei File CSV
 
 #### 1. Formato per Template a Tempi Fissi
 Il file deve contenere le colonne: `event_type`, `direction`, `relative_start`, `relative_end`.
