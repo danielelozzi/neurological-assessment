@@ -47,12 +47,6 @@ Hai tre modi per definire i punti di inizio e fine dei segmenti principali:
 
 ---
 
-### Nuove Funzionalità Aggiunte
-- **Salvataggio/Caricamento Segmenti**: Ora è possibile salvare i frame di inizio/fine dei segmenti `fast` e `slow` in un file `manual_main_events.csv` e ricaricarli.
-- **Caricamento da Template Migliorato**: La funzione "Carica Template a Tempi Fissi" ora imposta automaticamente anche i segmenti `fast` e `slow` se sono definiti nel file di template, oltre ai singoli trial.
-
----
-
 ### B. Definire gli Eventi di Movimento (Trial)
 Hai tre modi per specificare ogni singolo movimento (destra, sinistra, ecc.) all'interno dei segmenti:
 
@@ -69,7 +63,7 @@ Questa modalità è la più potente e precisa per analizzare esperimenti che seg
     - **Calcola i Tempi Assoluti**: Somma il frame di onset a tutti i tempi relativi presenti nel template.
     - **Imposta i Segmenti**: Compila automaticamente i campi di inizio/fine per i segmenti "fast" e "slow" e attiva la modalità "Definisci Segmenti Manualmente".
     - **Crea il File Eventi**: Genera un nuovo file CSV (es. `manual_events_fixed.csv`) nella cartella di output con i tempi assoluti di ogni trial (movimento).
-    - **Imposta gli Eventi**: Compila automaticamente il percorso di questo nuovo file e attiva la modalità "Carica Eventi da File CSV".
+    - **Imposta gli Eventi**: Compila automaticamente il percorso di questo nuovo file. Il programma userà questo file per l'analisi.
 
 A questo punto, l'intera analisi è pre-configurata con la massima precisione. Basta cliccare su "Avvia Analisi Completa".
 
@@ -82,21 +76,19 @@ A questo punto, l'intera analisi è pre-configurata con la massima precisione. B
 
 #### Metodo 3: Tramite File CSV
 - Prepara un file `.csv` con le specifiche di ogni trial.
-- Attiva la checkbox **"Carica Eventi da File CSV"** e seleziona il tuo file.
+- Clicca su **"Carica Eventi U/D/L/R (da CSV)"** e seleziona il tuo file.
 - Il programma salterà l'identificazione automatica dei movimenti e userà i dati del tuo file per generare il report.
 
 ---
 
-### C. Salvare e Caricare le Definizioni
+### C. Salvare e Caricare Template ed Eventi
 
-#### 1. Salvare i Segmenti Correnti
-- Dopo aver definito i segmenti `fast` e `slow` (manualmente o interattivamente), puoi salvarli per un uso futuro.
-- Clicca su **"Salva Segmenti FAST/SLOW Correnti su File"**.
-- Salva il file come `manual_main_events.csv`. Questo ti permetterà di avere un backup o di trasferire facilmente queste definizioni.
+La GUI è organizzata in sezioni per gestire i dati in modo intuitivo:
+- **Template Relativi**: Per caricare un paradigma sperimentale standard o salvare l'analisi corrente come un nuovo template riutilizzabile.
+- **Eventi Assoluti (Carica/Salva)**: Per caricare o salvare file CSV con i frame **assoluti** di segmenti (`fast`/`slow`) o trial (`up`/`down`/`left`/`right`). È utile per riprendere un'analisi o usare definizioni già pronte.
+- **Definizione Interattiva**: Per definire segmenti e trial visivamente tramite un video player. Al termine, il programma ti chiederà di salvare gli eventi dei trial in un file `manual_events.csv`.
 
-#### 2. Salvare gli Eventi di Movimento (Trial)
-- Dopo aver usato il selettore interattivo per i trial (UP/DOWN/LEFT/RIGHT), il programma ti chiederà di salvare un file, tipicamente `manual_events.csv`.
-- Questo file può essere ricaricato in sessioni successive usando l'opzione "Carica Eventi da File CSV".
+> **Nota importante**: Il salvataggio dei singoli trial (`up`/`down`/`left`/`right`) in un file `manual_events.csv` è parte integrante del flusso di lavoro della **"Definizione Interattiva"**.
 
 ---
 
