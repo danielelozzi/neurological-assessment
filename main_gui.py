@@ -103,6 +103,7 @@ class MainApp(ctk.CTk):
         self.manual_events_path = ctk.StringVar()
         self.fast_start_frame = ctk.StringVar()
         self.bbox_padding_perc = ctk.StringVar(value="20") # Default 20%
+        self.directional_excursion_threshold_perc = ctk.StringVar(value="15") # Default 15%
         self.excursion_threshold_perc = ctk.StringVar(value="80") # Default 80%
         self.fast_end_frame = ctk.StringVar()
         self.slow_start_frame = ctk.StringVar()
@@ -171,6 +172,9 @@ class MainApp(ctk.CTk):
         
         ctk.CTkLabel(params_frame, text="Soglia Successo Escursione (%):").grid(row=2, column=0, padx=10, pady=5, sticky="w")
         ctk.CTkEntry(params_frame, textvariable=self.excursion_threshold_perc, width=80).grid(row=2, column=1, padx=10, pady=5, sticky="w")
+
+        ctk.CTkLabel(params_frame, text="Soglia Bordo Esc. Direzionale (%):").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+        ctk.CTkEntry(params_frame, textvariable=self.directional_excursion_threshold_perc, width=80).grid(row=3, column=1, padx=10, pady=5, sticky="w")
 
         analyses_frame = ctk.CTkFrame(main_frame)
         analyses_frame.grid(row=5, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
@@ -511,6 +515,27 @@ class MainApp(ctk.CTk):
         error_message = ""
         try:
             print("--- ANALISI AVVIATA ---\n")
+
+            # --- NUOVO: Salvataggio parametri per riproducibilità ---
+            print("INFO: Salvataggio dei parametri di analisi...")
+            params_path = os.path.join(self.output_dir.get(), 'analysis_parameters.csv')
+            
+            analysis_params = {
+                'padding_box_inseguimento_perc': self.bbox_padding_perc.get(),
+                'soglia_successo_escursione_perc': self.excursion_threshold_perc.get(),
+                'soglia_bordo_esc_direzionale_perc': self.directional_excursion_threshold_perc.get(),
+                'metodo_rilevamento_palla': self.detection_method.get(),
+                'modello_yolo': self.yolo_model_path.get() if self.detection_method.get() == "YOLO" else 'N/A',
+                'analisi_frammentazione_attiva': self.run_fragmentation_analysis.get(),
+                'analisi_escursione_attiva': self.run_excursion_analysis.get()
+            }
+            
+            with open(params_path, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['parametro', 'valore'])
+                for key, value in analysis_params.items():
+                    writer.writerow([key, value])
+            print(f"INFO: Parametri salvati in '{params_path}'\n")
             
             # Determina se usare i segmenti manuali o automatici
             use_manual_segments = False
@@ -561,7 +586,8 @@ class MainApp(ctk.CTk):
                 run_excursion_analysis=self.run_excursion_analysis.get(),
                 manual_events_path=manual_events_file,
                 # Aggiungo i nuovi parametri per le soglie
-                excursion_success_threshold=float(self.excursion_threshold_perc.get()) / 100.0
+                excursion_success_threshold=float(self.excursion_threshold_perc.get()) / 100.0,
+                directional_excursion_edge_threshold=float(self.directional_excursion_threshold_perc.get()) / 100.0
             )
             generate_report.main(args_report)
             

@@ -272,30 +272,52 @@ def calculate_excursion(df_input, success_threshold):
     print(f"  - ✅ Calcolo 'Escursione' completato per {len(excursion_data)} trial.")
     return df_output
 
-def calculate_directional_excursion(df_input):
+def calculate_directional_excursion(df_input, margin_perc):
     """
-    Calcola se lo sguardo ha raggiunto il bordo corretto per ogni trial.
+    Calcola se lo sguardo ha superato la massima escursione della palla per ogni trial,
+    considerando un margine di tolleranza.
     Aggiunge le colonne 'directional_excursion_reached' e 'directional_excursion_success'.
     """
-    print("\nINFO: Avvio calcolo metrica 'Escursione Direzionale'...")
+    print("\nINFO: Avvio calcolo metrica 'Escursione Direzionale' (dinamica su escursione palla)...")
     
     if 'trial_id' not in df_input.columns or df_input[df_input['trial_id'] > 0].empty:
         print("  - ATTENZIONE: Nessun trial valido trovato per il calcolo dell'escursione direzionale.")
         df_input['directional_excursion_reached'] = 0.0
         df_input['directional_excursion_success'] = False
         return df_input
-
+    
     df_trials_only = df_input[df_input['trial_id'] > 0].copy()
-
-    # Definiamo le soglie dei bordi (es. 15% dal bordo)
-    EDGE_THRESHOLDS = {'up': 0.15, 'down': 0.85, 'left': 0.15, 'right': 0.85}
-
+    
+    # Funzione che verrà applicata a ogni gruppo (trial)
     def check_reach(group):
         direction = group['direction_simple'].iloc[0]
-        if direction == 'up': return (group['gaze_y_norm'] <= EDGE_THRESHOLDS['up']).any()
-        if direction == 'down': return (group['gaze_y_norm'] >= EDGE_THRESHOLDS['down']).any()
-        if direction == 'left': return (group['gaze_x_norm'] <= EDGE_THRESHOLDS['left']).any()
-        if direction == 'right': return (group['gaze_x_norm'] >= EDGE_THRESHOLDS['right']).any()
+        
+        if direction == 'up':
+            # Trova il punto più alto raggiunto dalla palla
+            idx_min = group['ball_center_y_norm'].idxmin()
+            ball_top_edge = group.loc[idx_min, 'ball_center_y_norm'] - (group.loc[idx_min, 'ball_h_norm'] / 2)
+            # La soglia è il bordo superiore della palla + un margine verso il centro
+            threshold_line = ball_top_edge + margin_perc
+            return (group['gaze_y_norm'] <= threshold_line).any()
+            
+        elif direction == 'down':
+            idx_max = group['ball_center_y_norm'].idxmax()
+            ball_bottom_edge = group.loc[idx_max, 'ball_center_y_norm'] + (group.loc[idx_max, 'ball_h_norm'] / 2)
+            threshold_line = ball_bottom_edge - margin_perc
+            return (group['gaze_y_norm'] >= threshold_line).any()
+
+        elif direction == 'left':
+            idx_min = group['ball_center_x_norm'].idxmin()
+            ball_left_edge = group.loc[idx_min, 'ball_center_x_norm'] - (group.loc[idx_min, 'ball_w_norm'] / 2)
+            threshold_line = ball_left_edge + margin_perc
+            return (group['gaze_x_norm'] <= threshold_line).any()
+
+        elif direction == 'right':
+            idx_max = group['ball_center_x_norm'].idxmax()
+            ball_right_edge = group.loc[idx_max, 'ball_center_x_norm'] + (group.loc[idx_max, 'ball_w_norm'] / 2)
+            threshold_line = ball_right_edge - margin_perc
+            return (group['gaze_x_norm'] >= threshold_line).any()
+            
         return False
 
     dir_excursion_data = df_trials_only.groupby('trial_id').apply(check_reach).reset_index(name='directional_excursion_success')
@@ -347,8 +369,13 @@ def main(args):
 
         # Esegui il calcolo dell'escursione, se richiesto
         if args.run_excursion_analysis:
-            df_center_out = calculate_excursion(df_center_out, args.excursion_success_threshold)
-            df_center_out = calculate_directional_excursion(df_center_out)
+            # Calcola le metriche
+            df_with_excursion = calculate_excursion(df_center_out.copy(), args.excursion_success_threshold)
+            df_with_directional_excursion = calculate_directional_excursion(df_center_out.copy(), args.directional_excursion_edge_threshold)
+            
+            # Unisci i risultati al dataframe principale dei trial
+            df_center_out = df_center_out.merge(df_with_excursion[['trial_id', 'excursion_perc_frames', 'excursion_success']].drop_duplicates(), on='trial_id', how='left')
+            df_center_out = df_center_out.merge(df_with_directional_excursion[['trial_id', 'directional_excursion_reached', 'directional_excursion_success']].drop_duplicates(), on='trial_id', how='left')
 
         # Dizionario per aggregare i dati
         agg_dict = {
