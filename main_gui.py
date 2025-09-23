@@ -156,28 +156,7 @@ class MainApp(ctk.CTk):
         ctk.CTkButton(interactive_frame, text="Definisci Segmenti FAST/SLOW (Interattivo)", command=self.define_segments_interactively).pack(fill="x", padx=10, pady=5)
         ctk.CTkButton(interactive_frame, text="Definisci Eventi U/D/L/R (Interattivo)", command=self.define_events_interactively).pack(fill="x", padx=10, pady=(5,10))
 
-        # --- FINE NUOVA STRUTTURA ---
-
-        # Campi di testo per la definizione manuale (rimangono invariati)
-        manual_text_frame = ctk.CTkFrame(manual_options_frame, fg_color="transparent")
-        manual_text_frame.pack(fill="x", padx=10, pady=10)
-        
-        self.manual_segments_frame = ctk.CTkFrame(manual_options_frame)
-        self.manual_segments_frame.pack(fill="x", expand=True, padx=20, pady=5)
-        self.manual_segments_frame.columnconfigure(1, weight=1)
-        ctk.CTkLabel(self.manual_segments_frame, text="Segmento 'Fast':").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        ctk.CTkEntry(self.manual_segments_frame, textvariable=self.fast_start_frame, placeholder_text="Frame Inizio").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-        ctk.CTkEntry(self.manual_segments_frame, textvariable=self.fast_end_frame, placeholder_text="Frame Fine").grid(row=0, column=2, padx=5, pady=5, sticky="ew")
-        ctk.CTkLabel(self.manual_segments_frame, text="Segmento 'Slow':").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        ctk.CTkEntry(self.manual_segments_frame, textvariable=self.slow_start_frame, placeholder_text="Frame Inizio").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
-        ctk.CTkEntry(self.manual_segments_frame, textvariable=self.slow_end_frame, placeholder_text="Frame Fine").grid(row=1, column=2, padx=5, pady=5, sticky="ew")
-
-        self.manual_events_frame = ctk.CTkFrame(manual_options_frame)
-        self.manual_events_frame.pack(fill="x", expand=True, padx=20, pady=5)
-        self.manual_events_frame.columnconfigure(0, weight=1)
-        self.manual_events_entry = ctk.CTkEntry(self.manual_events_frame, textvariable=self.manual_events_path)
-        self.manual_events_entry.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
-        self.manual_events_button = ctk.CTkButton(self.manual_events_frame, text="Seleziona...", width=100, command=self.select_manual_events_file)
+        # --- FINE NUOVA STRUTTURA (i campi di testo manuali sono stati rimossi come richiesto) ---
 
         analyses_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         analyses_frame.grid(row=4, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
