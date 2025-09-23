@@ -102,6 +102,8 @@ class MainApp(ctk.CTk):
         self.run_excursion_analysis = ctk.BooleanVar(value=False)
         self.manual_events_path = ctk.StringVar()
         self.fast_start_frame = ctk.StringVar()
+        self.bbox_padding_perc = ctk.StringVar(value="20") # Default 20%
+        self.excursion_threshold_perc = ctk.StringVar(value="80") # Default 80%
         self.fast_end_frame = ctk.StringVar()
         self.slow_start_frame = ctk.StringVar()
         self.slow_end_frame = ctk.StringVar()
@@ -157,12 +159,24 @@ class MainApp(ctk.CTk):
         ctk.CTkButton(interactive_frame, text="Definisci Eventi U/D/L/R (Interattivo)", command=self.define_events_interactively).pack(fill="x", padx=10, pady=(5,10))
 
         # --- FINE NUOVA STRUTTURA (i campi di testo manuali sono stati rimossi come richiesto) ---
+        
+        # --- NUOVA SEZIONE PARAMETRI ---
+        params_frame = ctk.CTkFrame(main_frame)
+        params_frame.grid(row=4, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
+        params_frame.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(params_frame, text="Parametri di Analisi", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, columnspan=3, padx=10, pady=(10,0), sticky="w")
+        
+        ctk.CTkLabel(params_frame, text="Padding Box Inseguimento (%):").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        ctk.CTkEntry(params_frame, textvariable=self.bbox_padding_perc, width=80).grid(row=1, column=1, padx=10, pady=5, sticky="w")
+        
+        ctk.CTkLabel(params_frame, text="Soglia Successo Escursione (%):").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+        ctk.CTkEntry(params_frame, textvariable=self.excursion_threshold_perc, width=80).grid(row=2, column=1, padx=10, pady=5, sticky="w")
 
-        analyses_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        analyses_frame.grid(row=4, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
-        ctk.CTkLabel(analyses_frame, text="Analisi Aggiuntive:").pack(anchor="w", padx=5, pady=(10,0))
-        ctk.CTkCheckBox(analyses_frame, text="Genera grafici 'Frammentazione'", variable=self.run_fragmentation_analysis).pack(anchor="w", padx=25, pady=5)
-        ctk.CTkCheckBox(analyses_frame, text="Calcola metrica 'Escursione'", variable=self.run_excursion_analysis).pack(anchor="w", padx=25, pady=5)
+        analyses_frame = ctk.CTkFrame(main_frame)
+        analyses_frame.grid(row=5, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(analyses_frame, text="Analisi Aggiuntive:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(10,0))
+        ctk.CTkCheckBox(analyses_frame, text="Genera grafici 'Frammentazione'", variable=self.run_fragmentation_analysis).pack(anchor="w", padx=25, pady=2)
+        ctk.CTkCheckBox(analyses_frame, text="Calcola metriche 'Escursione' e 'Escursione Direzionale'", variable=self.run_excursion_analysis).pack(anchor="w", padx=25, pady=(2,10))
 
         console_frame = ctk.CTkFrame(container)
         console_frame.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
@@ -525,10 +539,12 @@ class MainApp(ctk.CTk):
 
             print("\n--- Avvio 'detect_and_save_ball.py' ---")
             args_detect = SimpleNamespace(
-                input_dir=self.input_dir.get(), 
-                output_dir=self.output_dir.get(), 
-                use_yolo=(self.detection_method.get() == "YOLO"), 
-                yolo_model=self.yolo_model_path.get()
+                input_dir=self.input_dir.get(),
+                output_dir=self.output_dir.get(),
+                use_yolo=(self.detection_method.get() == "YOLO"),
+                yolo_model=self.yolo_model_path.get(),
+                # Aggiungo il nuovo parametro per il padding
+                bbox_padding_factor=1.0 + (float(self.bbox_padding_perc.get()) / 100.0)
             )
             detect_and_save_ball.main(args_detect)
 
@@ -538,12 +554,14 @@ class MainApp(ctk.CTk):
             if not os.path.isfile(manual_events_file):
                 manual_events_file = None
             args_report = SimpleNamespace(
-                analysis_dir=self.output_dir.get(), 
-                output_dir=self.output_dir.get(), 
-                input_dir_for_pupil=self.input_dir.get(), 
-                run_fragmentation_analysis=self.run_fragmentation_analysis.get(), 
+                analysis_dir=self.output_dir.get(),
+                output_dir=self.output_dir.get(),
+                input_dir_for_pupil=self.input_dir.get(),
+                run_fragmentation_analysis=self.run_fragmentation_analysis.get(),
                 run_excursion_analysis=self.run_excursion_analysis.get(),
-                manual_events_path=manual_events_file
+                manual_events_path=manual_events_file,
+                # Aggiungo i nuovi parametri per le soglie
+                excursion_success_threshold=float(self.excursion_threshold_perc.get()) / 100.0
             )
             generate_report.main(args_report)
             

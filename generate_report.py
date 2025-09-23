@@ -245,31 +245,64 @@ def generate_fragmentation_plots(df_main, df_cuts, output_dir):
         plt.close()
         print(f"  - Grafico di frammentazione con eventi salvato in: {plot_path}")
 
-def calculate_excursion(df_input):
+def calculate_excursion(df_input, success_threshold):
     """
     Calcola la percentuale di completamento della traiettoria per ogni trial.
     Aggiunge le colonne 'excursion_perc_frames' e 'excursion_success'.
     """
     print("\nINFO: Avvio calcolo metrica 'Escursione' (completamento traiettoria)...")
     
-    if 'trial_id' not in df_input.columns or df_input['trial_id'].nunique() == 0:
+    if 'trial_id' not in df_input.columns or df_input[df_input['trial_id'] > 0].empty:
         print("  - ATTENZIONE: Nessun trial valido trovato per il calcolo dell'escursione.")
         df_input['excursion_perc_frames'] = 0.0
         df_input['excursion_success'] = False
         return df_input
 
     # Calcola la percentuale di 'gaze_in_box' per ogni trial
-    excursion_data = df_input.groupby('trial_id')['gaze_in_box'].mean().reset_index()
+    df_trials_only = df_input[df_input['trial_id'] > 0].copy()
+    excursion_data = df_trials_only.groupby('trial_id')['gaze_in_box'].mean().reset_index()
     excursion_data.rename(columns={'gaze_in_box': 'excursion_perc_frames'}, inplace=True)
     
     # Definisce il successo se la percentuale supera una soglia (es. 80%)
-    SUCCESS_THRESHOLD = 0.80
-    excursion_data['excursion_success'] = excursion_data['excursion_perc_frames'] >= SUCCESS_THRESHOLD
+    excursion_data['excursion_success'] = excursion_data['excursion_perc_frames'] >= success_threshold
     
     # Unisce i risultati al dataframe principale
     df_output = df_input.merge(excursion_data, on='trial_id', how='left')
     
     print(f"  - ✅ Calcolo 'Escursione' completato per {len(excursion_data)} trial.")
+    return df_output
+
+def calculate_directional_excursion(df_input):
+    """
+    Calcola se lo sguardo ha raggiunto il bordo corretto per ogni trial.
+    Aggiunge le colonne 'directional_excursion_reached' e 'directional_excursion_success'.
+    """
+    print("\nINFO: Avvio calcolo metrica 'Escursione Direzionale'...")
+    
+    if 'trial_id' not in df_input.columns or df_input[df_input['trial_id'] > 0].empty:
+        print("  - ATTENZIONE: Nessun trial valido trovato per il calcolo dell'escursione direzionale.")
+        df_input['directional_excursion_reached'] = 0.0
+        df_input['directional_excursion_success'] = False
+        return df_input
+
+    df_trials_only = df_input[df_input['trial_id'] > 0].copy()
+
+    # Definiamo le soglie dei bordi (es. 15% dal bordo)
+    EDGE_THRESHOLDS = {'up': 0.15, 'down': 0.85, 'left': 0.15, 'right': 0.85}
+
+    def check_reach(group):
+        direction = group['direction_simple'].iloc[0]
+        if direction == 'up': return (group['gaze_y_norm'] <= EDGE_THRESHOLDS['up']).any()
+        if direction == 'down': return (group['gaze_y_norm'] >= EDGE_THRESHOLDS['down']).any()
+        if direction == 'left': return (group['gaze_x_norm'] <= EDGE_THRESHOLDS['left']).any()
+        if direction == 'right': return (group['gaze_x_norm'] >= EDGE_THRESHOLDS['right']).any()
+        return False
+
+    dir_excursion_data = df_trials_only.groupby('trial_id').apply(check_reach).reset_index(name='directional_excursion_success')
+    dir_excursion_data['directional_excursion_reached'] = dir_excursion_data['directional_excursion_success'].astype(float)
+
+    df_output = df_input.merge(dir_excursion_data, on='trial_id', how='left')
+    print(f"  - ✅ Calcolo 'Escursione Direzionale' completato per {len(dir_excursion_data)} trial.")
     return df_output
 
 def main(args):
@@ -314,7 +347,8 @@ def main(args):
 
         # Esegui il calcolo dell'escursione, se richiesto
         if args.run_excursion_analysis:
-            df_center_out = calculate_excursion(df_center_out)
+            df_center_out = calculate_excursion(df_center_out, args.excursion_success_threshold)
+            df_center_out = calculate_directional_excursion(df_center_out)
 
         # Dizionario per aggregare i dati
         agg_dict = {
@@ -330,9 +364,14 @@ def main(args):
             agg_dict['excursion_success_perc'] = ('excursion_success', 'mean')
         if 'excursion_perc_frames' in df_center_out.columns:
             agg_dict['avg_excursion_perc_frames'] = ('excursion_perc_frames', 'mean')
+        if 'directional_excursion_success' in df_center_out.columns:
+            agg_dict['directional_excursion_success_perc'] = ('directional_excursion_success', 'mean')
+        if 'directional_excursion_reached' in df_center_out.columns:
+            agg_dict['avg_directional_excursion_reached'] = ('directional_excursion_reached', 'mean')
 
         summary = df_center_out.groupby('direction_simple').agg(**agg_dict).reset_index()
         summary['avg_gaze_in_box_perc'] *= 100
+        if 'directional_excursion_success_perc' in summary: summary['directional_excursion_success_perc'] *= 100
         if 'excursion_success_perc' in summary: summary['excursion_success_perc'] *= 100
 
         summary.to_excel(writer, sheet_name=f"Riepilogo_{segment_name}", index=False)
@@ -349,6 +388,9 @@ def main(args):
         if 'excursion_success' in df_center_out.columns:
             gen_sum['escursione_successo_perc'] = df_center_out['excursion_success'].mean() * 100
             gen_sum['escursione_perc_frames_media'] = df_center_out['excursion_perc_frames'].mean()
+        if 'directional_excursion_success' in df_center_out.columns:
+            gen_sum['escursione_direzionale_successo_perc'] = df_center_out['directional_excursion_success'].mean() * 100
+            gen_sum['escursione_direzionale_raggiunta_perc_media'] = df_center_out['directional_excursion_reached'].mean()
         general_summary_list.append(gen_sum)
 
         for direction in summary['direction_simple'].unique():

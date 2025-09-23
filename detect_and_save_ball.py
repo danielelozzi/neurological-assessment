@@ -145,8 +145,6 @@ def align_timestamps_and_filter(world_timestamps_path, gaze_data_path):
 def main(args):
     # --- CORREZIONE: Ho riorganizzato la logica per renderla più robusta ---
 
-    # Percorsi dei file di input e output
-    BBOX_PADDING_FACTOR = 1.20
     world_timestamps_path = os.path.join(args.input_dir, 'world_timestamps.csv')
     gaze_csv_path = os.path.join(args.input_dir, 'gaze.csv')
     surface_positions_path = os.path.join(args.input_dir, 'surface_positions.csv')
@@ -283,7 +281,7 @@ def main(args):
             gaze_in_box_status, gaze_color = False, (0, 0, 255)
             if ball_bbox is not None:
                 x, y, w, h = ball_bbox
-                w_new, h_new = w * BBOX_PADDING_FACTOR, h * BBOX_PADDING_FACTOR
+                w_new, h_new = w * args.bbox_padding_factor, h * args.bbox_padding_factor
                 x_new, y_new = x - (w_new - w) / 2, y - (h_new - h) / 2
                 enlarged_bbox = (int(x_new), int(y_new), int(w_new), int(h_new))
                 cv2.rectangle(warped_frame, (enlarged_bbox[0], enlarged_bbox[1]), (enlarged_bbox[0] + enlarged_bbox[2], enlarged_bbox[1] + enlarged_bbox[3]), (255, 0, 0), 2)
