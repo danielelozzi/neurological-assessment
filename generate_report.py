@@ -380,7 +380,18 @@ def main(args):
     
     # --- NUOVO: Calcola le metriche sull'intero dataframe prima di splittare ---
     if args.run_excursion_analysis:
+        print("\nINFO: Calcolo delle metriche di escursione richiesto.")
+        # Calcola le metriche e le unisce al dataframe principale
+        df_excursion = calculate_excursion(df_main.copy(), args.excursion_success_threshold)
+        df_directional = calculate_directional_excursion(df_main.copy(), args.directional_excursion_edge_threshold)
+
+        # Unisci i risultati usando 'trial_id' come chiave
+        df_main = df_main.merge(df_excursion[['trial_id', 'excursion_perc_frames', 'excursion_success']].dropna(subset=['trial_id']).drop_duplicates('trial_id'), on='trial_id', how='left')
+        df_main = df_main.merge(df_directional[['trial_id', 'dir_ex_line_coord', 'directional_excursion_reached', 'directional_excursion_success']].dropna(subset=['trial_id']).drop_duplicates('trial_id'), on='trial_id', how='left')
+
+        # Calcola la percentuale di inseguimento progressiva per i video
         df_main = calculate_running_gaze_in_box_percentage(df_main)
+
     general_summary_list = []
 
     # Esegui l'analisi di frammentazione sull'intero dataset, se richiesto
@@ -400,19 +411,9 @@ def main(args):
         if not (hasattr(args, 'manual_events_path') and args.manual_events_path and os.path.exists(args.manual_events_path)):
             validate_movement_sequence(df_center_out, expected_sequences.get(segment_name, []), segment_name)
 
-        # Esegui il calcolo dell'escursione, se richiesto
-        if args.run_excursion_analysis:
-            # Calcola le metriche e le unisce al dataframe principale
-            df_excursion = calculate_excursion(df_main.copy(), args.excursion_success_threshold)
-            df_directional = calculate_directional_excursion(df_main.copy(), args.directional_excursion_edge_threshold)
-
-            # --- CORREZIONE: Unisci i risultati usando 'trial_id' come chiave ---
-            df_main = df_main.merge(df_excursion[['trial_id', 'excursion_perc_frames', 'excursion_success']].drop_duplicates('trial_id'), on='trial_id', how='left')
-            df_main = df_main.merge(df_directional[['trial_id', 'dir_ex_line_coord', 'directional_excursion_reached', 'directional_excursion_success']].drop_duplicates('trial_id'), on='trial_id', how='left')
-            
-            # Aggiorna i dataframe di segmento e trial con le nuove colonne
-            df_segment = df_main[(df_main['frame'] >= cut_row['start_frame']) & (df_main['frame'] <= cut_row['end_frame'])].copy()
-            df_center_out = df_segment[df_segment['trial_id'] > 0].copy()
+        # Aggiorna i dataframe di segmento e trial con le nuove colonne (se calcolate)
+        df_segment = df_main[(df_main['frame'] >= cut_row['start_frame']) & (df_main['frame'] <= cut_row['end_frame'])].copy()
+        df_center_out = df_segment[df_segment['trial_id'] > 0].copy()
 
         # Dizionario per aggregare i dati
         agg_dict = {
