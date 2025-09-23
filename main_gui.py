@@ -100,8 +100,6 @@ class MainApp(ctk.CTk):
         self.detection_method = ctk.StringVar(value="YOLO")
         self.run_fragmentation_analysis = ctk.BooleanVar(value=False)
         self.run_excursion_analysis = ctk.BooleanVar(value=False)
-        self.manual_segments_mode = ctk.BooleanVar(value=False)
-        self.manual_events_mode = ctk.BooleanVar(value=False)
         self.manual_events_path = ctk.StringVar()
         self.fast_start_frame = ctk.StringVar()
         self.fast_end_frame = ctk.StringVar()
@@ -133,25 +131,39 @@ class MainApp(ctk.CTk):
         manual_options_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         manual_options_frame.grid(row=3, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         
-        interactive_buttons_frame = ctk.CTkFrame(manual_options_frame)
-        interactive_buttons_frame.pack(fill="x", pady=(5, 15))
+        # --- NUOVA STRUTTURA PULSANTI ---
         
-        self.fixed_template_button = ctk.CTkButton(interactive_buttons_frame, text="Carica Template a Tempi Fissi...", command=self.load_fixed_template)
-        self.fixed_template_button.pack(fill="x", padx=20, pady=(5, 10))
+        # 1. Template Relativi
+        template_frame = ctk.CTkFrame(manual_options_frame)
+        template_frame.pack(fill="x", padx=10, pady=5)
+        ctk.CTkLabel(template_frame, text="Template Relativi", font=ctk.CTkFont(weight="bold")).pack(pady=(5,0))
+        ctk.CTkButton(template_frame, text="Carica Template a Tempi Fissi (da CSV)", command=self.load_fixed_template).pack(fill="x", padx=10, pady=5)
+        ctk.CTkButton(template_frame, text="Salva Template Relativo Corrente (in CSV)", command=self.save_relative_template).pack(fill="x", padx=10, pady=(5,10))
 
-        self.interactive_segments_button = ctk.CTkButton(interactive_buttons_frame, text="Definisci Segmenti FAST/SLOW (Interattivo)", command=self.define_segments_interactively)
-        self.interactive_segments_button.pack(fill="x", padx=20, pady=5)
+        # 2. Eventi Assoluti (Carica/Salva)
+        absolute_frame = ctk.CTkFrame(manual_options_frame)
+        absolute_frame.pack(fill="x", padx=10, pady=5)
+        ctk.CTkLabel(absolute_frame, text="Eventi Assoluti (Carica/Salva)", font=ctk.CTkFont(weight="bold")).pack(pady=(5,0))
+        ctk.CTkButton(absolute_frame, text="Carica Segmenti FAST/SLOW (da CSV)", command=self.load_main_events_from_file).pack(fill="x", padx=10, pady=5)
+        ctk.CTkButton(absolute_frame, text="Carica Eventi U/D/L/R (da CSV)", command=self.select_manual_events_file).pack(fill="x", padx=10, pady=5)
+        ctk.CTkButton(absolute_frame, text="Salva Segmenti FAST/SLOW (CSV Assoluto)", command=self.save_main_events_to_file).pack(fill="x", padx=10, pady=(5,10))
+        # Nota: Il salvataggio degli eventi U/D/L/R è gestito dal flusso interattivo
 
-        self.interactive_events_button = ctk.CTkButton(interactive_buttons_frame, text="Definisci Eventi UP/DOWN/LEFT/RIGHT (Interattivo)", command=self.define_events_interactively)
-        self.interactive_events_button.pack(fill="x", padx=20, pady=5)
-        
-        self.interactive_main_events_button = ctk.CTkButton(interactive_buttons_frame, text="Salva Segmenti FAST/SLOW Correnti su File", command=self.save_main_events_to_file)
-        self.interactive_main_events_button.pack(fill="x", padx=20, pady=5)
+        # 3. Definizione Interattiva
+        interactive_frame = ctk.CTkFrame(manual_options_frame)
+        interactive_frame.pack(fill="x", padx=10, pady=5)
+        ctk.CTkLabel(interactive_frame, text="Definizione Interattiva", font=ctk.CTkFont(weight="bold")).pack(pady=(5,0))
+        ctk.CTkButton(interactive_frame, text="Definisci Segmenti FAST/SLOW (Interattivo)", command=self.define_segments_interactively).pack(fill="x", padx=10, pady=5)
+        ctk.CTkButton(interactive_frame, text="Definisci Eventi U/D/L/R (Interattivo)", command=self.define_events_interactively).pack(fill="x", padx=10, pady=(5,10))
 
-        self.manual_segments_check = ctk.CTkCheckBox(manual_options_frame, text="Definisci Segmenti Manualmente (Testuale)", variable=self.manual_segments_mode, command=self.toggle_manual_segments_frame)
-        self.manual_segments_check.pack(anchor="w", padx=5, pady=(10,0))
+        # --- FINE NUOVA STRUTTURA ---
+
+        # Campi di testo per la definizione manuale (rimangono invariati)
+        manual_text_frame = ctk.CTkFrame(manual_options_frame, fg_color="transparent")
+        manual_text_frame.pack(fill="x", padx=10, pady=10)
         
         self.manual_segments_frame = ctk.CTkFrame(manual_options_frame)
+        self.manual_segments_frame.pack(fill="x", expand=True, padx=20, pady=5)
         self.manual_segments_frame.columnconfigure(1, weight=1)
         ctk.CTkLabel(self.manual_segments_frame, text="Segmento 'Fast':").grid(row=0, column=0, padx=10, pady=5, sticky="w")
         ctk.CTkEntry(self.manual_segments_frame, textvariable=self.fast_start_frame, placeholder_text="Frame Inizio").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
@@ -160,15 +172,12 @@ class MainApp(ctk.CTk):
         ctk.CTkEntry(self.manual_segments_frame, textvariable=self.slow_start_frame, placeholder_text="Frame Inizio").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
         ctk.CTkEntry(self.manual_segments_frame, textvariable=self.slow_end_frame, placeholder_text="Frame Fine").grid(row=1, column=2, padx=5, pady=5, sticky="ew")
 
-        self.manual_events_check = ctk.CTkCheckBox(manual_options_frame, text="Carica Eventi da File CSV", variable=self.manual_events_mode, command=self.toggle_manual_events_frame)
-        self.manual_events_check.pack(anchor="w", padx=5, pady=(10,0))
-
         self.manual_events_frame = ctk.CTkFrame(manual_options_frame)
+        self.manual_events_frame.pack(fill="x", expand=True, padx=20, pady=5)
         self.manual_events_frame.columnconfigure(0, weight=1)
         self.manual_events_entry = ctk.CTkEntry(self.manual_events_frame, textvariable=self.manual_events_path)
         self.manual_events_entry.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
         self.manual_events_button = ctk.CTkButton(self.manual_events_frame, text="Seleziona...", width=100, command=self.select_manual_events_file)
-        self.manual_events_button.grid(row=0, column=1, padx=10, pady=10)
 
         analyses_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         analyses_frame.grid(row=4, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
@@ -192,8 +201,6 @@ class MainApp(ctk.CTk):
         self.run_button.grid(row=1, column=0, padx=20, pady=20, sticky="ew")
         
         self.check_hardware_acceleration()
-        self.toggle_manual_segments_frame()
-        self.toggle_manual_events_frame()
         self.check_inputs()
 
     # --- MODIFICA: La funzione per il template ora offre una scelta ---
@@ -208,6 +215,21 @@ class MainApp(ctk.CTk):
             filetypes=[("CSV Files", "*.csv")]
         )
         if not template_path:
+            return
+
+        # --- NUOVO: Validazione delle colonne del file template ---
+        try:
+            df_check = pd.read_csv(template_path)
+            required_cols = ['event_type', 'direction', 'relative_start', 'relative_end']
+            if not all(col in df_check.columns for col in required_cols):
+                messagebox.showerror(
+                    "Formato File non Valido",
+                    f"Il file selezionato non è un template valido.\n\nDeve contenere le colonne: {required_cols}\n\n"
+                    "Se stai cercando di caricare un file di eventi già definiti (es. 'manual_events.csv'), usa l'opzione 'Carica Eventi U/D/L/R (da CSV)'."
+                )
+                return
+        except Exception as e:
+            messagebox.showerror("Errore Lettura File", f"Impossibile leggere o validare il file CSV:\n{e}")
             return
 
         # Chiedi all'utente COME vuole inserire l'onset
@@ -279,7 +301,6 @@ class MainApp(ctk.CTk):
             self.slow_end_frame.set(str(int(slow_segment['end_frame'])))
             self.manual_segments_mode.set(True)
             print("INFO: Campi dei segmenti compilati e modalità manuale attivata.")
-
             df_trials = df_template[df_template['event_type'] == 'trial'].copy()
             df_trials['segment_name'] = df_trials.apply(
                 lambda row: 'fast' if (row['start_frame'] >= fast_segment['start_frame'] and row['start_frame'] < fast_segment['end_frame']) else 'slow',
@@ -291,7 +312,6 @@ class MainApp(ctk.CTk):
             df_trials[['segment_name', 'direction_simple', 'start_frame', 'end_frame']].to_csv(output_csv_path, index=False)
             
             self.manual_events_path.set(output_csv_path)
-            self.manual_events_mode.set(True)
             print(f"INFO: File 'manual_events_fixed.csv' generato in '{output_csv_path}' e modalità manuale attivata.")
 
         except Exception as e:
@@ -317,10 +337,74 @@ class MainApp(ctk.CTk):
                 self.slow_start_frame.set(str(segments['slow'][0]))
                 self.slow_end_frame.set(str(segments['slow'][1]))
             
-            self.manual_segments_mode.set(True)
             print("Segmenti 'fast' e 'slow' definiti interattivamente.")
         else:
             print("Definizione interattiva dei segmenti annullata.")
+
+    def save_relative_template(self):
+        """
+        Salva un template con tempi relativi basandosi sui valori correnti nella GUI.
+        Chiede all'utente di specificare l'onset per il calcolo.
+        """
+        try:
+            # 1. Verifica che ci siano dati da cui partire
+            fs = int(self.fast_start_frame.get())
+            fe = int(self.fast_end_frame.get())
+            ss = int(self.slow_start_frame.get())
+            se = int(self.slow_end_frame.get())
+            
+            if not os.path.exists(self.manual_events_path.get()):
+                messagebox.showerror("Dati Mancanti", "Per creare un template relativo, devi prima definire e caricare un file di eventi U/D/L/R (es. 'manual_events.csv').")
+                return
+
+            # 2. Chiedi l'onset (che sarà il nostro "zero")
+            onset_frame = simpledialog.askinteger(
+                "Definisci Onset per Template",
+                "Quale frame deve essere considerato il punto '0' per i tempi relativi?\n(Solitamente l'inizio del segmento FAST)",
+                initialvalue=fs,
+                parent=self
+            )
+            if onset_frame is None:
+                print("INFO: Creazione template relativo annullata.")
+                return
+
+            # 3. Chiedi dove salvare il file
+            save_path = filedialog.asksaveasfilename(
+                title="Salva Template Relativo",
+                defaultextension=".csv",
+                filetypes=[("CSV Files", "*.csv")],
+                initialfile="relative_template.csv"
+            )
+            if not save_path:
+                return
+
+            # 4. Calcola e scrivi i dati
+            template_data = []
+            # Aggiungi segmenti
+            template_data.append({'event_type': 'segment', 'direction': 'fast', 'relative_start': fs - onset_frame, 'relative_end': fe - onset_frame})
+            template_data.append({'event_type': 'segment', 'direction': 'slow', 'relative_start': ss - onset_frame, 'relative_end': se - onset_frame})
+
+            # Aggiungi trial
+            df_trials_abs = pd.read_csv(self.manual_events_path.get())
+            for _, row in df_trials_abs.iterrows():
+                template_data.append({
+                    'event_type': 'trial',
+                    'direction': row['direction_simple'],
+                    'relative_start': row['start_frame'] - onset_frame,
+                    'relative_end': row['end_frame'] - onset_frame
+                })
+            
+            df_template = pd.DataFrame(template_data)
+            df_template.to_csv(save_path, index=False)
+
+            print(f"INFO: Template relativo salvato con successo in: {save_path}")
+            messagebox.showinfo("Successo", f"Template relativo salvato in:\n{save_path}")
+
+        except (ValueError, TclError):
+            messagebox.showerror("Errore", "I valori dei frame per i segmenti FAST/SLOW non sono numeri validi.")
+        except Exception as e:
+            messagebox.showerror("Errore", f"Impossibile creare il template relativo:\n{e}")
+            traceback.print_exc()
 
     def save_main_events_to_file(self):
         save_path = filedialog.asksaveasfilename(
@@ -350,6 +434,26 @@ class MainApp(ctk.CTk):
 
         else:
             print("INFO: Salvataggio eventi MAIN annullato.")
+
+    def load_main_events_from_file(self):
+        load_path = filedialog.askopenfilename(
+            title="Carica file eventi MAIN (FAST/SLOW) CSV",
+            filetypes=[("CSV Files", "*.csv")]
+        )
+        if load_path:
+            try:
+                df = pd.read_csv(load_path)
+                fast_segment = df[df['segment_name'] == 'fast'].iloc[0]
+                slow_segment = df[df['segment_name'] == 'slow'].iloc[0]
+
+                self.fast_start_frame.set(str(int(fast_segment['start_frame'])))
+                self.fast_end_frame.set(str(int(fast_segment['end_frame'])))
+                self.slow_start_frame.set(str(int(slow_segment['start_frame'])))
+                self.slow_end_frame.set(str(int(slow_segment['end_frame'])))
+                
+                print(f"INFO: Segmenti FAST/SLOW caricati da '{load_path}'.")
+            except Exception as e:
+                messagebox.showerror("Errore di Caricamento", f"Impossibile leggere il file dei segmenti:\n{e}")
 
     def define_events_interactively(self):
         video_path = os.path.join(self.input_dir.get(), 'video.mp4')
@@ -390,28 +494,15 @@ class MainApp(ctk.CTk):
                 df = pd.DataFrame(df_data)
                 df.to_csv(save_path, index=False)
                 self.manual_events_path.set(save_path)
-                self.manual_events_mode.set(True)
                 print(f"File eventi creato e salvato in: {save_path}")
         else:
             print("Definizione interattiva degli eventi annullata o nessun evento definito.")
 
-    def toggle_manual_segments_frame(self):
-        if self.manual_segments_mode.get():
-            self.manual_segments_frame.pack(fill="x", expand=True, padx=20, pady=5)
-        else:
-            self.manual_segments_frame.pack_forget()
-        self.check_inputs()
-
-    def toggle_manual_events_frame(self):
-        if self.manual_events_mode.get():
-            self.manual_events_frame.pack(fill="x", expand=True, padx=20, pady=5)
-        else:
-            self.manual_events_frame.pack_forget()
-        self.check_inputs()
-
     def select_manual_events_file(self):
         path = filedialog.askopenfilename(title="Seleziona file eventi CSV", filetypes=[("CSV Files", "*.csv")])
-        if path: self.manual_events_path.set(path)
+        if path: 
+            self.manual_events_path.set(path)
+            print(f"INFO: File eventi U/D/L/R impostato su: {path}")
     
     def check_inputs_callback(self, *args):
         self.check_inputs()
@@ -420,23 +511,23 @@ class MainApp(ctk.CTk):
         input_ok = os.path.isdir(self.input_dir.get())
         output_ok = os.path.isdir(self.output_dir.get())
         
-        manual_segments_ok = not self.manual_segments_mode.get()
-        if self.manual_segments_mode.get():
-            try:
-                fs = int(self.fast_start_frame.get() or 0)
-                fe = int(self.fast_end_frame.get() or 0)
-                ss = int(self.slow_start_frame.get() or 0)
-                se = int(self.slow_end_frame.get() or 0)
-                if (fe > fs) and (se > ss):
-                    manual_segments_ok = True
-            except (ValueError, tkinter.TclError):
-                manual_segments_ok = False
-        
-        manual_events_ok = not self.manual_events_mode.get() or os.path.isfile(self.manual_events_path.get())
+        # I campi dei segmenti sono validi se sono vuoti (modalità auto) o se contengono numeri validi
+        manual_segments_ok = False
+        try:
+            fs = self.fast_start_frame.get()
+            fe = self.fast_end_frame.get()
+            ss = self.slow_start_frame.get()
+            se = self.slow_end_frame.get()
+            if all(v == "" for v in [fs, fe, ss, se]): # Tutti vuoti -> OK (auto)
+                manual_segments_ok = True
+            elif all(v.isdigit() for v in [fs, fe, ss, se]) and int(fe) > int(fs) and int(se) > int(ss): # Tutti numeri validi -> OK (manuale)
+                manual_segments_ok = True
+        except (ValueError, tkinter.TclError):
+            manual_segments_ok = False
         
         auto_detect_ok = os.path.isfile(self.yolo_model_path.get()) if self.detection_method.get() == "YOLO" else True
 
-        final_ok = input_ok and output_ok and manual_segments_ok and manual_events_ok and auto_detect_ok
+        final_ok = input_ok and output_ok and manual_segments_ok and auto_detect_ok
             
         self.run_button.configure(state="normal" if final_ok else "disabled")
 
@@ -452,8 +543,16 @@ class MainApp(ctk.CTk):
         try:
             print("--- ANALISI AVVIATA ---\n")
             
+            # Determina se usare i segmenti manuali o automatici
+            use_manual_segments = False
+            try:
+                if all(v.isdigit() for v in [self.fast_start_frame.get(), self.fast_end_frame.get(), self.slow_start_frame.get(), self.slow_end_frame.get()]):
+                    use_manual_segments = True
+            except TclError:
+                pass
+
             cut_points_path = os.path.join(self.output_dir.get(), 'cut_points.csv')
-            if self.manual_segments_mode.get():
+            if use_manual_segments:
                 print("Modalità manuale segmenti attiva: creo 'cut_points.csv' dai valori inseriti nella GUI...")
                 with open(cut_points_path, 'w', newline='') as f:
                     writer = csv.writer(f)
@@ -479,7 +578,10 @@ class MainApp(ctk.CTk):
             detect_and_save_ball.main(args_detect)
 
             print("\n--- Avvio 'generate_report.py' ---")
-            manual_events_file = self.manual_events_path.get() if self.manual_events_mode.get() else None
+            # Determina se usare il file di eventi manuali
+            manual_events_file = self.manual_events_path.get()
+            if not os.path.isfile(manual_events_file):
+                manual_events_file = None
             args_report = SimpleNamespace(
                 analysis_dir=self.output_dir.get(), 
                 output_dir=self.output_dir.get(), 
