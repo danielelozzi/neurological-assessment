@@ -184,7 +184,6 @@ def validate_movement_sequence(df, seq, name):
 
 # In generate_report.py
 
-# In generate_report.py
 
 def generate_fragmentation_plots(df_main, df_cuts, output_dir):
     """

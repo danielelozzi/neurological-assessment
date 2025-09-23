@@ -145,6 +145,9 @@ class MainApp(ctk.CTk):
         self.interactive_events_button = ctk.CTkButton(interactive_buttons_frame, text="Definisci Eventi UP/DOWN/LEFT/RIGHT (Interattivo)", command=self.define_events_interactively)
         self.interactive_events_button.pack(fill="x", padx=20, pady=5)
         
+        self.interactive_main_events_button = ctk.CTkButton(interactive_buttons_frame, text="Salva Segmenti FAST/SLOW Correnti su File", command=self.save_main_events_to_file)
+        self.interactive_main_events_button.pack(fill="x", padx=20, pady=5)
+
         self.manual_segments_check = ctk.CTkCheckBox(manual_options_frame, text="Definisci Segmenti Manualmente (Testuale)", variable=self.manual_segments_mode, command=self.toggle_manual_segments_frame)
         self.manual_segments_check.pack(anchor="w", padx=5, pady=(10,0))
         
@@ -212,7 +215,38 @@ class MainApp(ctk.CTk):
         self.wait_window(choice_dialog)
         choice = choice_dialog.result
         
+        # Tentativo di caricare anche gli eventi "main" dal template
+        try:
+            print(f"INFO: Tentativo di caricamento eventi 'main' da '{template_path}'...")
+            df_template_main = pd.read_csv(template_path)
+            df_segments = df_template_main[df_template_main['event_type'] == 'segment'].copy()
+            if not df_segments.empty:
+                fast_segment = df_segments[df_segments['direction'] == 'fast'].iloc[0]
+                slow_segment = df_segments[df_segments['direction'] == 'slow'].iloc[0]
+
+                self.fast_start_frame.set(str(int(fast_segment['relative_start'])))
+                self.fast_end_frame.set(str(int(fast_segment['relative_end'])))
+                self.slow_start_frame.set(str(int(slow_segment['relative_start'])))
+                self.slow_end_frame.set(str(int(slow_segment['relative_end'])))
+
+                print("INFO: Eventi 'main' caricati dal template (tempi relativi).")
+            else:
+                print("INFO: Nessun evento 'main' trovato nel template.")
+        except Exception as e:
+            print(f"ATTENZIONE: Errore nel caricamento degli eventi 'main' dal template: {e}")
+
+            # Chiedi all'utente COME vuole inserire l'onset
+        choice_dialog = OnsetChoiceDialog(self)
+        self.wait_window(choice_dialog)
+        choice = choice_dialog.result
+
         onset_frame = None
+        if choice == 'manual':
+            onset_frame = simpledialog.askinteger(
+                "Inserisci Onset",
+                "Inserisci il numero del frame di INIZIO del segmento 'fast':",
+                onset_frame = None
+            )
         if choice == 'manual':
             onset_frame = simpledialog.askinteger(
                 "Inserisci Onset",
@@ -287,6 +321,35 @@ class MainApp(ctk.CTk):
             print("Segmenti 'fast' e 'slow' definiti interattivamente.")
         else:
             print("Definizione interattiva dei segmenti annullata.")
+
+    def save_main_events_to_file(self):
+        save_path = filedialog.asksaveasfilename(
+            title="Salva file eventi MAIN (FAST/SLOW) CSV",
+            defaultextension=".csv",
+            filetypes=[("CSV Files", "*.csv")],
+            initialfile="manual_main_events.csv"
+        )
+        if save_path:
+            try:
+                fs = int(self.fast_start_frame.get())
+                fe = int(self.fast_end_frame.get())
+                ss = int(self.slow_start_frame.get())
+                se = int(self.slow_end_frame.get())
+
+                with open(save_path, 'w', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['segment_name', 'start_frame', 'end_frame'])
+                    writer.writerow(['fast', fs, fe])
+                    writer.writerow(['slow', ss, se])
+
+                print(f"INFO: File eventi MAIN creato e salvato in: {save_path}")
+            except ValueError:
+                messagebox.showerror("Errore", "Valori di frame FAST/SLOW non validi.")
+            except Exception as e:
+                messagebox.showerror("Errore", f"Errore durante il salvataggio del file: {e}")
+
+        else:
+            print("INFO: Salvataggio eventi MAIN annullato.")
 
     def define_events_interactively(self):
         video_path = os.path.join(self.input_dir.get(), 'video.mp4')
