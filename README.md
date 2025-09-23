@@ -83,22 +83,6 @@ Questa modalità è utile per riutilizzare definizioni già create o per prepara
 
 ---
 
-### E. Parametri di Analisi
-La GUI presenta una sezione dedicata ai "Parametri di Analisi" che permette di affinare il comportamento degli algoritmi:
-
-- **Padding Box Inseguimento (%)**: Controlla la dimensione dell'area di tolleranza usata per determinare se lo sguardo è "sulla palla" (`gaze_in_box`). Un valore più alto rende l'analisi più permissiva (box più grande), mentre un valore più basso la rende più conservativa (box più piccolo). Il default è 20%.
-
-- **Soglia Successo Escursione (%)**: Definisce la percentuale minima di tempo che lo sguardo deve passare all'interno del box di inseguimento affinché un trial sia considerato "di successo" per la metrica `escursione_successo_perc`. Il default è 80%.
-
-- **Soglia Bordo Esc. Direzionale (%)**: Definisce un margine di tolleranza per la metrica di "Escursione Direzionale". Questo valore (espresso come percentuale della dimensione dello schermo) viene usato per creare una "linea del traguardo" dinamica. Un valore più alto rende il test più permissivo, spostando la linea verso il centro. Il default è 15%.
-
-Questi parametri vengono passati agli script di analisi quando si clicca su "Avvia Analisi Completa".
-
-> **Nota**: Se si desidera calcolare le metriche di escursione, è necessario spuntare la casella "Calcola metriche 'Escursione' e 'Escursione Direzionale'".
-
-
----
-
 ### D. Formati dei File CSV
 
 #### 1. Formato per Template a Tempi Fissi
@@ -130,6 +114,22 @@ segment_name,direction_simple,start_frame,end_frame
 fast,right,5010,5090
 fast,left,5150,5230
 ```
+
+---
+
+### E. Parametri di Analisi
+La GUI presenta una sezione dedicata ai "Parametri di Analisi" che permette di affinare il comportamento degli algoritmi:
+
+- **Padding Box Inseguimento (%)**: Controlla la dimensione dell'area di tolleranza usata per determinare se lo sguardo è "sulla palla" (`gaze_in_box`). Un valore più alto rende l'analisi più permissiva (box più grande), mentre un valore più basso la rende più conservativa (box più piccolo). Il default è 20%.
+
+- **Soglia Successo Escursione (%)**: Definisce la percentuale minima di tempo che lo sguardo deve passare all'interno del box di inseguimento affinché un trial sia considerato "di successo" per la metrica `escursione_successo_perc`. Il default è 80%.
+
+- **Soglia Bordo Esc. Direzionale (%)**: Definisce un margine di tolleranza per la metrica di "Escursione Direzionale". Questo valore (espresso come percentuale della dimensione dello schermo) viene usato per creare una "linea del traguardo" dinamica. Un valore più alto rende il test più permissivo, spostando la linea verso il centro. Il default è 15%.
+
+Questi parametri vengono passati agli script di analisi quando si clicca su "Avvia Analisi Completa".
+
+> **Nota**: Se si desidera calcolare le metriche di escursione, è necessario spuntare la casella "Calcola metriche 'Escursione' e 'Escursione Direzionale'".
+
 
 ---
 
