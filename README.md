@@ -135,13 +135,16 @@ Questi parametri vengono passati agli script di analisi quando si clicca su "Avv
 
 ## 📋 Prerequisiti
 
-È necessario acquisire i dati con **Pupil Labs Neon**, usare gli **AprilTag** e processare la registrazione su **Pupil Cloud** con l'enrichment **Marker Mapper**.  
+È necessario acquisire i dati con **Pupil Labs Neon**, usare gli **AprilTag** e processare la registrazione su **Pupil Cloud** con gli enrichment **Marker Mapper** e **3D Eye States**.  
 La cartella scaricata da Pupil Cloud deve contenere i file:
 
 - `video.mp4`
 - `gaze.csv`
 - `world_timestamps.csv`
 - `surface_positions.csv`
+- `3d_eye_states.csv` (opzionale, ma necessario per l'analisi pupillometrica)
+
+> **Nota**: Se il file `3d_eye_states.csv` non è presente, il software funzionerà comunque ma salterà tutte le metriche relative al diametro pupillare.
 
 ---
 

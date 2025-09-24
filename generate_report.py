@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 import cv2
+import re # Importa il modulo re per la pulizia dei nomi delle colonne
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.interpolate import interp1d
@@ -88,28 +89,36 @@ def calculate_movement_data(df):
 
 def add_pupil_data(df_main, base_dir):
     """Aggiunge i dati sul diametro pupillare al dataframe principale."""
-    pupil_path = os.path.join(base_dir, 'pupil.csv')
+    pupil_path = os.path.join(base_dir, '3d_eye_states.csv') # Modificato da pupil.csv
     if not os.path.exists(pupil_path):
-        print("ATTENZIONE: File 'pupil.csv' non trovato. L'analisi pupillometrica sarà saltata.")
+        print("ATTENZIONE: File '3d_eye_states.csv' non trovato. L'analisi pupillometrica sarà saltata.")
         return df_main
 
     print("INFO: Aggiunta dei dati pupillari...")
     df_pupil = pd.read_csv(pupil_path)
     
     if 'timestamp [ns]' not in df_pupil.columns:
-        print("ATTENZIONE: Colonna 'timestamp [ns]' non trovata in pupil.csv.")
+        print("ATTENZIONE: Colonna 'timestamp [ns]' non trovata in 3d_eye_states.csv.")
         return df_main
     
     df_pupil.rename(columns={'timestamp [ns]': 'pupil_timestamp_ns'}, inplace=True)
     df_pupil['pupil_timestamp_dt'] = pd.to_datetime(df_pupil['pupil_timestamp_ns'], unit='ns')
     
-    # Calcola il diametro medio se sono presenti le colonne left e right
-    if 'diameter_3d [mm]_left' in df_pupil.columns and 'diameter_3d [mm]_right' in df_pupil.columns:
-        df_pupil[PUPIL_COL_NAME] = df_pupil[['diameter_3d [mm]_left', 'diameter_3d [mm]_right']].mean(axis=1)
-    elif 'diameter_3d [mm]' in df_pupil.columns:
-         df_pupil[PUPIL_COL_NAME] = df_pupil['diameter_3d [mm]']
+    # Pulizia dei nomi delle colonne per facilitare la ricerca
+    df_pupil.columns = [re.sub(r'[^a-zA-Z0-9_\[\]]', '', col).strip() for col in df_pupil.columns]
+    
+    # Colonne per il diametro pupillare nel nuovo file
+    left_pupil_col = 'pupildiameterleft[mm]'
+    right_pupil_col = 'pupildiameterright[mm]'
+
+    if left_pupil_col in df_pupil.columns and right_pupil_col in df_pupil.columns:
+        df_pupil[PUPIL_COL_NAME] = df_pupil[[left_pupil_col, right_pupil_col]].mean(axis=1)
+    elif left_pupil_col in df_pupil.columns:
+        df_pupil[PUPIL_COL_NAME] = df_pupil[left_pupil_col]
+    elif right_pupil_col in df_pupil.columns:
+        df_pupil[PUPIL_COL_NAME] = df_pupil[right_pupil_col]
     else:
-        print("ATTENZIONE: Colonne diametro pupillare non trovate in pupil.csv.")
+        print("ATTENZIONE: Colonne diametro pupillare ('pupil diameter left [mm]' o 'pupil diameter right [mm]') non trovate in 3d_eye_states.csv.")
         return df_main
 
     df_main['world_timestamp_dt'] = pd.to_datetime(df_main['frame'].astype(int)) # Usiamo il frame come proxy se manca il timestamp
