@@ -1,3 +1,7 @@
 percentuale nel box vs avg
 dilatazione
 latenza quindi il ritardo da quando parte il pallino a quando lo sguardo lo segue
+escursione
+escusriosne direzionale
+ritardo 
+inseguimento
