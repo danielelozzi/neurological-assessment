@@ -125,19 +125,19 @@ def add_pupil_data(df_main, base_dir):
     if 'world_timestamp_ns' in df_main.columns:
         print("INFO: Trovata colonna 'world_timestamp_ns'. Utilizzo timestamp preciso per il merge.")
         df_main['world_timestamp_dt'] = pd.to_datetime(df_main['world_timestamp_ns'], unit='ns')
+        
+        merged_df = pd.merge_asof(
+            df_main.sort_values('world_timestamp_dt'),
+            df_pupil[['pupil_timestamp_dt', PUPIL_COL_NAME]].sort_values('pupil_timestamp_dt'),
+            left_on='world_timestamp_dt',
+            right_on='pupil_timestamp_dt',
+            direction='nearest'
+        )
+        return merged_df
     else:
-        print("ATTENZIONE: Colonna 'world_timestamp_ns' non trovata. Uso il numero di frame (meno preciso).")
-        df_main['merge_key_dt'] = pd.to_datetime(df_main['frame'].astype(int))
-    
-    merged_df = pd.merge_asof(
-        df_main.sort_values('world_timestamp_dt' if 'world_timestamp_dt' in df_main else 'merge_key_dt'),
-        df_pupil[['pupil_timestamp_dt', PUPIL_COL_NAME]].sort_values('pupil_timestamp_dt'),
-        left_on='world_timestamp_dt' if 'world_timestamp_dt' in df_main else 'merge_key_dt',
-        right_on='pupil_timestamp_dt',
-        direction='nearest'
-    )
-    if 'merge_key_dt' in merged_df.columns: merged_df.drop(columns=['merge_key_dt'], inplace=True)
-    return merged_df
+        print("ERRORE CRITICO: Colonna 'world_timestamp_ns' non trovata. Impossibile sincronizzare i dati pupillari.")
+        return df_main
+
 
 def generate_gaze_heatmap(df_gaze, width, height, output_path):
     """Genera una heatmap delle posizioni dello sguardo."""
@@ -348,6 +348,27 @@ def main(args):
     cuts_path = os.path.join(args.analysis_dir, 'cut_points.csv')
     df_main = pd.read_csv(analysis_path)
 
+    # --- MODIFICA FONDAMENTALE ---
+    # Carica esplicitamente i timestamp del video per garantire la sincronizzazione.
+    world_timestamps_path = os.path.join(args.input_dir_for_pupil, 'world_timestamps.csv')
+    if os.path.exists(world_timestamps_path):
+        print("INFO: Trovato 'world_timestamps.csv'. Lo uso per sincronizzare i dati pupillari.")
+        df_world = pd.read_csv(world_timestamps_path)
+        df_world.rename(columns=lambda c: c.strip(), inplace=True)
+        if 'timestamp [ns]' in df_world.columns:
+            df_world['frame'] = range(len(df_world))
+            # Rimuovi la colonna timestamp se esiste già per evitare conflitti
+            if 'world_timestamp_ns' in df_main.columns:
+                df_main.drop(columns=['world_timestamp_ns'], inplace=True)
+            df_main = pd.merge(df_main, df_world[['frame', 'timestamp [ns]']], on='frame', how='left')
+            df_main.rename(columns={'timestamp [ns]': 'world_timestamp_ns'}, inplace=True)
+            print("INFO: Timestamp del video uniti con successo al dataframe principale.")
+        else:
+            print("ATTENZIONE: 'world_timestamps.csv' trovato ma non contiene 'timestamp [ns]'.")
+    else:
+        print("ATTENZIONE: 'world_timestamps.csv' non trovato. Sincronizzazione imprecisa.")
+    # --- FINE MODIFICA ---
+
     w, h = get_video_dimensions(os.path.join(args.input_dir_for_pupil, 'video.mp4'))
     df_main['frame_width'] = w
     df_main['frame_height'] = h
@@ -396,14 +417,12 @@ def main(args):
         if not (hasattr(args, 'manual_events_path') and args.manual_events_path and os.path.exists(args.manual_events_path)):
             validate_movement_sequence(df_center_out, expected_sequences.get(segment_name, []), segment_name)
         
-        # --- INIZIO BLOCCO CORRETTO ---
         agg_dict = {
             'avg_gaze_in_box_perc': ('gaze_in_box', 'mean'),
             'avg_gaze_speed': ('gaze_speed', 'mean'),
             'trial_count': ('trial_id', 'nunique')
         }
         
-        # Calcola la media del diametro pupillare (point-wise) per il riepilogo
         if PUPIL_COL_NAME in df_center_out.columns and df_center_out[PUPIL_COL_NAME].notna().any():
             agg_dict['diametro_pupillare_medio'] = (PUPIL_COL_NAME, 'mean')
         
@@ -419,10 +438,7 @@ def main(args):
         if 'directional_excursion_success_perc' in summary: summary['directional_excursion_success_perc'] *= 100
         if 'excursion_success_perc' in summary: summary['excursion_success_perc'] *= 100
         
-        # --- FINE BLOCCO CORRETTO ---
-
         summary.to_excel(writer, sheet_name=f"Riepilogo_{segment_name}", index=False)
-        # Salva i dati di dettaglio (df_center_out) che ora contengono i valori pupillari point-wise corretti
         df_center_out.to_excel(writer, sheet_name=f"Dettagli_{segment_name}", index=False)
 
         gen_sum = {
