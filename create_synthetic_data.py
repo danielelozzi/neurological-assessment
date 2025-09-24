@@ -117,7 +117,7 @@ def generate_data():
     world_timestamps_data = []
     surface_positions_data = []
     gaze_data = []
-    pupil_data = []
+    eye_states_data = []
     template_events = []
     
     # Aggiungiamo i segmenti al template
@@ -215,11 +215,13 @@ def generate_data():
             'gaze position on surface y [normalized]': gaze_y,
         })
 
-        # Dati pupillari (rumore casuale)
-        pupil_diameter = 3.5 + np.random.normal(0, 0.1)
-        pupil_data.append({
+        # Dati pupillari per 3d_eye_states.csv (rumore casuale)
+        pupil_diameter_left = 3.5 + np.random.normal(0, 0.1)
+        pupil_diameter_right = 3.55 + np.random.normal(0, 0.1) # Leggermente diverso
+        eye_states_data.append({
             'timestamp [ns]': timestamp_ns,
-            'diameter_3d [mm]': pupil_diameter
+            'pupil diameter left [mm]': pupil_diameter_left,
+            'pupil diameter right [mm]': pupil_diameter_right
         })
 
     out.release()
@@ -230,7 +232,7 @@ def generate_data():
     pd.DataFrame(world_timestamps_data).to_csv(os.path.join(INPUT_DIR, 'world_timestamps.csv'), index=False)
     pd.DataFrame(surface_positions_data).to_csv(os.path.join(INPUT_DIR, 'surface_positions.csv'), index=False)
     pd.DataFrame(gaze_data).to_csv(os.path.join(INPUT_DIR, 'gaze.csv'), index=False)
-    pd.DataFrame(pupil_data).to_csv(os.path.join(INPUT_DIR, 'pupil.csv'), index=False)
+    pd.DataFrame(eye_states_data).to_csv(os.path.join(INPUT_DIR, '3d_eye_states.csv'), index=False)
     
     df_template = pd.DataFrame(template_events, columns=['event_type', 'direction', 'relative_start', 'relative_end'])
     template_path = os.path.join(INPUT_DIR, 'template_tempi_fissi.csv')

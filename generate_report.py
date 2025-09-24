@@ -108,8 +108,8 @@ def add_pupil_data(df_main, base_dir):
     df_pupil.columns = [re.sub(r'[^a-zA-Z0-9_\[\]]', '', col).strip() for col in df_pupil.columns]
     
     # Colonne per il diametro pupillare nel nuovo file
-    left_pupil_col = 'pupildiameterleft[mm]'
-    right_pupil_col = 'pupildiameterright[mm]'
+    left_pupil_col = 'pupil diameter left [mm]'
+    right_pupil_col = 'pupil diameter right [mm]'
 
     if left_pupil_col in df_pupil.columns and right_pupil_col in df_pupil.columns:
         df_pupil[PUPIL_COL_NAME] = df_pupil[[left_pupil_col, right_pupil_col]].mean(axis=1)
@@ -121,7 +121,13 @@ def add_pupil_data(df_main, base_dir):
         print("ATTENZIONE: Colonne diametro pupillare ('pupil diameter left [mm]' o 'pupil diameter right [mm]') non trovate in 3d_eye_states.csv.")
         return df_main
 
-    df_main['world_timestamp_dt'] = pd.to_datetime(df_main['frame'].astype(int)) # Usiamo il frame come proxy se manca il timestamp
+    # --- CORREZIONE: Usa il timestamp preciso se disponibile, altrimenti usa il frame come fallback ---
+    if 'world_timestamp_ns' in df_main.columns:
+        print("INFO: Trovata colonna 'world_timestamp_ns'. Utilizzo timestamp preciso per il merge.")
+        df_main['world_timestamp_dt'] = pd.to_datetime(df_main['world_timestamp_ns'], unit='ns')
+    else:
+        print("ATTENZIONE: Colonna 'world_timestamp_ns' non trovata. Uso il numero di frame come proxy per il timestamp (meno preciso).")
+        df_main['world_timestamp_dt'] = pd.to_datetime(df_main['frame'].astype(int)) # Fallback
     
     merged_df = pd.merge_asof(
         df_main.sort_values('world_timestamp_dt'),
