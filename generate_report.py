@@ -129,7 +129,6 @@ def add_pupil_data(df_main, base_dir):
         print("ATTENZIONE: Colonna 'world_timestamp_ns' non trovata. Uso il numero di frame (meno preciso).")
         df_main['merge_key_dt'] = pd.to_datetime(df_main['frame'].astype(int))
     
-    # --- MODIFICA CHIAVE: Rimossa la tolleranza per forzare il merge al timestamp più vicino ---
     merged_df = pd.merge_asof(
         df_main.sort_values('world_timestamp_dt' if 'world_timestamp_dt' in df_main else 'merge_key_dt'),
         df_pupil[['pupil_timestamp_dt', PUPIL_COL_NAME]].sort_values('pupil_timestamp_dt'),
@@ -397,11 +396,14 @@ def main(args):
         if not (hasattr(args, 'manual_events_path') and args.manual_events_path and os.path.exists(args.manual_events_path)):
             validate_movement_sequence(df_center_out, expected_sequences.get(segment_name, []), segment_name)
         
+        # --- INIZIO BLOCCO CORRETTO ---
         agg_dict = {
             'avg_gaze_in_box_perc': ('gaze_in_box', 'mean'),
             'avg_gaze_speed': ('gaze_speed', 'mean'),
             'trial_count': ('trial_id', 'nunique')
         }
+        
+        # Calcola la media del diametro pupillare (point-wise) per il riepilogo
         if PUPIL_COL_NAME in df_center_out.columns and df_center_out[PUPIL_COL_NAME].notna().any():
             agg_dict['diametro_pupillare_medio'] = (PUPIL_COL_NAME, 'mean')
         
@@ -416,16 +418,11 @@ def main(args):
         summary['avg_gaze_in_box_perc'] *= 100
         if 'directional_excursion_success_perc' in summary: summary['directional_excursion_success_perc'] *= 100
         if 'excursion_success_perc' in summary: summary['excursion_success_perc'] *= 100
-
-        if PUPIL_COL_NAME in df_center_out.columns and df_center_out[PUPIL_COL_NAME].notna().any():
-            # Calcola la media per ogni singolo frame all'interno del trial
-            df_center_out['diametro_pupillare_medio_trial'] = df_center_out.groupby('trial_id')[PUPIL_COL_NAME].transform('mean')
-            
-            # Calcola la media delle medie dei trial, raggruppando per direzione
-            pupil_summary = df_center_out.drop_duplicates('trial_id').groupby('direction_simple')['diametro_pupillare_medio_trial'].mean().reset_index()
-            summary = pd.merge(summary, pupil_summary, on='direction_simple', how='left')
+        
+        # --- FINE BLOCCO CORRETTO ---
 
         summary.to_excel(writer, sheet_name=f"Riepilogo_{segment_name}", index=False)
+        # Salva i dati di dettaglio (df_center_out) che ora contengono i valori pupillari point-wise corretti
         df_center_out.to_excel(writer, sheet_name=f"Dettagli_{segment_name}", index=False)
 
         gen_sum = {
