@@ -104,19 +104,25 @@ def add_pupil_data(df_main, base_dir):
     df_pupil.rename(columns={'timestamp [ns]': 'pupil_timestamp_ns'}, inplace=True)
     df_pupil['pupil_timestamp_dt'] = pd.to_datetime(df_pupil['pupil_timestamp_ns'], unit='ns')
     
-    # Pulizia dei nomi delle colonne per facilitare la ricerca
-    df_pupil.columns = [re.sub(r'[^a-zA-Z0-9_\[\]]', '', col).strip() for col in df_pupil.columns]
-    
-    # Colonne per il diametro pupillare nel nuovo file
-    left_pupil_col = 'pupil diameter left [mm]'
-    right_pupil_col = 'pupil diameter right [mm]'
+    # --- CORREZIONE: Cerca i nomi delle colonne prima di pulirli ---
+    # Nomi originali che ci aspettiamo da Pupil Cloud
+    left_pupil_col_orig = 'pupil diameter left [mm]'
+    right_pupil_col_orig = 'pupil diameter right [mm]'
 
-    if left_pupil_col in df_pupil.columns and right_pupil_col in df_pupil.columns:
-        df_pupil[PUPIL_COL_NAME] = df_pupil[[left_pupil_col, right_pupil_col]].mean(axis=1)
-    elif left_pupil_col in df_pupil.columns:
-        df_pupil[PUPIL_COL_NAME] = df_pupil[left_pupil_col]
-    elif right_pupil_col in df_pupil.columns:
-        df_pupil[PUPIL_COL_NAME] = df_pupil[right_pupil_col]
+
+    # Pulisci i nomi delle colonne nel dataframe
+    df_pupil.columns = [re.sub(r'[^a-zA-Z0-9_\[\]]', '', col).strip() for col in df_pupil.columns]
+
+    # Pulisci anche i nomi che stiamo cercando, per farli corrispondere
+    left_pupil_col_clean = re.sub(r'[^a-zA-Z0-9_\[\]]', '', left_pupil_col_orig).strip()
+    right_pupil_col_clean = re.sub(r'[^a-zA-Z0-9_\[\]]', '', right_pupil_col_orig).strip()
+
+    if left_pupil_col_clean in df_pupil.columns and right_pupil_col_clean in df_pupil.columns:
+        df_pupil[PUPIL_COL_NAME] = df_pupil[[left_pupil_col_clean, right_pupil_col_clean]].mean(axis=1)
+    elif left_pupil_col_clean in df_pupil.columns:
+        df_pupil[PUPIL_COL_NAME] = df_pupil[left_pupil_col_clean]
+    elif right_pupil_col_clean in df_pupil.columns:
+        df_pupil[PUPIL_COL_NAME] = df_pupil[right_pupil_col_clean]
     else:
         print("ATTENZIONE: Colonne diametro pupillare ('pupil diameter left [mm]' o 'pupil diameter right [mm]') non trovate in 3d_eye_states.csv.")
         return df_main
@@ -403,7 +409,7 @@ def main(args):
         df_directional = calculate_directional_excursion(df_main.copy(), args.directional_excursion_edge_threshold)
 
         # Unisci i risultati usando 'trial_id' come chiave
-        df_main = df_main.merge(df_excursion[['trial_id', 'excursion_perc_frames', 'excursion_success']].dropna(subset=['trial_id']).drop_duplicates('trial_id'), on='trial_id', how='left')
+        df_main = df_main.merge(df_excursion[['trial_id', 'excursion_perc_frames', 'excursion_success']].drop_duplicates('trial_id'), on='trial_id', how='left')
         df_main = df_main.merge(df_directional[['trial_id', 'dir_ex_line_coord', 'directional_excursion_reached', 'directional_excursion_success']].dropna(subset=['trial_id']).drop_duplicates('trial_id'), on='trial_id', how='left')
 
         # Calcola la percentuale di inseguimento progressiva per i video
@@ -439,7 +445,7 @@ def main(args):
             'trial_count': ('trial_id', 'nunique')
         }
         if PUPIL_COL_NAME in df_center_out and df_center_out[PUPIL_COL_NAME].notna().any():
-            agg_dict['avg_pupil_diameter'] = (PUPIL_COL_NAME, 'mean')
+            agg_dict['diametro_pupillare_medio'] = (PUPIL_COL_NAME, 'mean')
         
         # Aggiungi le metriche di escursione al dizionario se presenti
         if 'excursion_success' in df_center_out.columns:
@@ -490,5 +496,5 @@ def main(args):
     final_csv_path = os.path.join(args.output_dir, 'output_final_analysis_with_metrics.csv')
     df_main.to_csv(final_csv_path, index=False)
     print(f"\nINFO: Dati di analisi completi con metriche salvati in '{final_csv_path}'")
-
+    
     print("\nINFO: Report Excel 'final_report.xlsx' generato con successo.")
