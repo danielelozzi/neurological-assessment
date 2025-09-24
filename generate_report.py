@@ -89,7 +89,7 @@ def calculate_movement_data(df):
 
 def add_pupil_data(df_main, base_dir):
     """Aggiunge i dati sul diametro pupillare al dataframe principale."""
-    pupil_path = os.path.join(base_dir, '3d_eye_states.csv') # Modificato da pupil.csv
+    pupil_path = os.path.join(base_dir, '3d_eye_states.csv')
     if not os.path.exists(pupil_path):
         print("ATTENZIONE: File '3d_eye_states.csv' non trovato. L'analisi pupillometrica sarà saltata.")
         return df_main
@@ -104,16 +104,11 @@ def add_pupil_data(df_main, base_dir):
     df_pupil.rename(columns={'timestamp [ns]': 'pupil_timestamp_ns'}, inplace=True)
     df_pupil['pupil_timestamp_dt'] = pd.to_datetime(df_pupil['pupil_timestamp_ns'], unit='ns')
     
-    # --- CORREZIONE: Cerca i nomi delle colonne prima di pulirli ---
-    # Nomi originali che ci aspettiamo da Pupil Cloud
     left_pupil_col_orig = 'pupil diameter left [mm]'
     right_pupil_col_orig = 'pupil diameter right [mm]'
 
-
-    # Pulisci i nomi delle colonne nel dataframe
     df_pupil.columns = [re.sub(r'[^a-zA-Z0-9_\[\]]', '', col).strip() for col in df_pupil.columns]
 
-    # Pulisci anche i nomi che stiamo cercando, per farli corrispondere
     left_pupil_col_clean = re.sub(r'[^a-zA-Z0-9_\[\]]', '', left_pupil_col_orig).strip()
     right_pupil_col_clean = re.sub(r'[^a-zA-Z0-9_\[\]]', '', right_pupil_col_orig).strip()
 
@@ -124,25 +119,23 @@ def add_pupil_data(df_main, base_dir):
     elif right_pupil_col_clean in df_pupil.columns:
         df_pupil[PUPIL_COL_NAME] = df_pupil[right_pupil_col_clean]
     else:
-        print("ATTENZIONE: Colonne diametro pupillare ('pupil diameter left [mm]' o 'pupil diameter right [mm]') non trovate in 3d_eye_states.csv.")
+        print("ATTENZIONE: Colonne diametro pupillare non trovate in 3d_eye_states.csv.")
         return df_main
 
-    # --- CORREZIONE: Usa il timestamp preciso se disponibile, altrimenti usa il frame come fallback ---
     if 'world_timestamp_ns' in df_main.columns:
         print("INFO: Trovata colonna 'world_timestamp_ns'. Utilizzo timestamp preciso per il merge.")
         df_main['world_timestamp_dt'] = pd.to_datetime(df_main['world_timestamp_ns'], unit='ns')
     else:
-        print("ATTENZIONE: Colonna 'world_timestamp_ns' non trovata. Uso il numero di frame come proxy per il timestamp (meno preciso).")
-        # Per evitare conflitti di tipo, creiamo una colonna temporanea per il merge
+        print("ATTENZIONE: Colonna 'world_timestamp_ns' non trovata. Uso il numero di frame (meno preciso).")
         df_main['merge_key_dt'] = pd.to_datetime(df_main['frame'].astype(int))
     
+    # --- MODIFICA CHIAVE: Rimossa la tolleranza per forzare il merge al timestamp più vicino ---
     merged_df = pd.merge_asof(
         df_main.sort_values('world_timestamp_dt' if 'world_timestamp_dt' in df_main else 'merge_key_dt'),
         df_pupil[['pupil_timestamp_dt', PUPIL_COL_NAME]].sort_values('pupil_timestamp_dt'),
         left_on='world_timestamp_dt' if 'world_timestamp_dt' in df_main else 'merge_key_dt',
         right_on='pupil_timestamp_dt',
-        direction='nearest',
-        tolerance=pd.Timedelta('100ms')
+        direction='nearest'
     )
     if 'merge_key_dt' in merged_df.columns: merged_df.drop(columns=['merge_key_dt'], inplace=True)
     return merged_df
@@ -172,7 +165,6 @@ def generate_pupillometry_plot(df_trials, pupil_col, output_path):
     if df_trials.empty:
         return
 
-    # Normalizzazione temporale per ogni trial
     normalized_trials = []
     for trial_id in df_trials['trial_id'].unique():
         trial_data = df_trials[df_trials['trial_id'] == trial_id].copy()
@@ -205,9 +197,6 @@ def validate_movement_sequence(df, seq, name):
     else:
         print("  - ✅ La sequenza rilevata corrisponde a quella attesa.")
 
-# In generate_report.py
-
-
 def generate_fragmentation_plots(df_main, df_cuts, output_dir):
     """
     Genera grafici della frammentazione dello sguardo, evidenziando i periodi di ogni trial.
@@ -215,9 +204,6 @@ def generate_fragmentation_plots(df_main, df_cuts, output_dir):
     print("\nINFO: Avvio generazione grafici 'Frammentazione' con trigger degli eventi...")
     sns.set_theme(style="whitegrid")
     
-    # --- CORREZIONE QUI ---
-    # Convertiamo i colori in un formato (tupla di float) che Matplotlib capisce.
-    # (R/255, G/255, B/255, Alpha)
     direction_colors = {
         'up':    (1.0, 0.70, 0.73, 0.3), # Rosa pastello
         'down':  (0.73, 0.88, 1.0, 0.3),  # Azzurro pastello
@@ -281,15 +267,12 @@ def calculate_excursion(df_input, success_threshold):
         df_input['excursion_success'] = False
         return df_input
 
-    # Calcola la percentuale di 'gaze_in_box' per ogni trial
     df_trials_only = df_input[df_input['trial_id'] > 0].copy()
     excursion_data = df_trials_only.groupby('trial_id')['gaze_in_box'].mean().reset_index()
     excursion_data.rename(columns={'gaze_in_box': 'excursion_perc_frames'}, inplace=True)
     
-    # Definisce il successo se la percentuale supera una soglia (es. 80%)
     excursion_data['excursion_success'] = excursion_data['excursion_perc_frames'] >= success_threshold
     
-    # Unisce i risultati al dataframe principale
     df_output = df_input.merge(excursion_data, on='trial_id', how='left')
     
     print(f"  - ✅ Calcolo 'Escursione' completato per {len(excursion_data)} trial.")
@@ -306,34 +289,27 @@ def calculate_running_gaze_in_box_percentage(df_input):
 
 def calculate_directional_excursion(df_input, margin_perc):
     """
-    Calcola se lo sguardo ha superato la massima escursione della palla per ogni trial,
-    considerando un margine di tolleranza.
-    Aggiunge le colonne 'directional_excursion_reached' e 'directional_excursion_success'.
+    Calcola se lo sguardo ha superato la massima escursione della palla per ogni trial.
     """
-    print("\nINFO: Avvio calcolo metrica 'Escursione Direzionale' (dinamica su escursione palla)...")
+    print("\nINFO: Avvio calcolo metrica 'Escursione Direzionale'...")
     
     if 'trial_id' not in df_input.columns or df_input[df_input['trial_id'] > 0].empty:
-        print("  - ATTENZIONE: Nessun trial valido trovato per il calcolo dell'escursione direzionale.")
+        print("  - ATTENZIONE: Nessun trial valido trovato.")
         df_input['directional_excursion_reached'] = 0.0
         df_input['directional_excursion_success'] = False
         return df_input
     
     df_trials_only = df_input[df_input['trial_id'] > 0].copy()
     
-    # Aggiungiamo colonne per la linea di escursione
     df_input['dir_ex_line_coord'] = np.nan
 
-    # Funzione che verrà applicata a ogni gruppo (trial)
     def check_reach(group):
         direction = group['direction_simple'].iloc[0]
         
         if direction == 'up':
-            # Trova il punto più alto raggiunto dalla palla
             idx_min = group['ball_center_y_norm'].idxmin()
             ball_top_edge = group.loc[idx_min, 'ball_center_y_norm'] - (group.loc[idx_min, 'ball_h_norm'] / 2)
-            # La soglia è il bordo superiore della palla + un margine verso il centro
             threshold_line_norm = ball_top_edge + margin_perc
-            # Salva la coordinata della linea per il frame di massima escursione
             group.loc[idx_min, 'dir_ex_line_coord'] = threshold_line_norm * group['frame_height'].iloc[0]
             return (group['gaze_y_norm'] <= threshold_line_norm).any()
             
@@ -360,13 +336,12 @@ def calculate_directional_excursion(df_input, margin_perc):
             
         return False
 
-    # Applica la funzione e ottieni i successi e le linee
     results = df_trials_only.groupby('trial_id').apply(check_reach)
     dir_excursion_data = results.reset_index(name='directional_excursion_success')
     dir_excursion_data['directional_excursion_reached'] = dir_excursion_data['directional_excursion_success'].astype(float)
 
     df_output = df_input.merge(dir_excursion_data, on='trial_id', how='left')
-    print(f"  - ✅ Calcolo 'Escursione Direzionale' completato per {len(dir_excursion_data)} trial.")
+    print(f"  - ✅ Calcolo completato per {len(dir_excursion_data)} trial.")
     return df_output
 
 def main(args):
@@ -374,17 +349,14 @@ def main(args):
     cuts_path = os.path.join(args.analysis_dir, 'cut_points.csv')
     df_main = pd.read_csv(analysis_path)
 
-    # Aggiungi dimensioni del frame per calcoli futuri
     w, h = get_video_dimensions(os.path.join(args.input_dir_for_pupil, 'video.mp4'))
     df_main['frame_width'] = w
     df_main['frame_height'] = h
 
-    # --- CORREZIONE: Unisci i dati dei segmenti al dataframe principale ---
     df_cuts = pd.read_csv(cuts_path)
     df_main['segment_name'] = ''
     for _, row in df_cuts.iterrows():
         df_main.loc[(df_main['frame'] >= row['start_frame']) & (df_main['frame'] <= row['end_frame']), 'segment_name'] = row['segment_name']
-    df_cuts = pd.read_csv(cuts_path)
 
     if hasattr(args, 'manual_events_path') and args.manual_events_path and os.path.exists(args.manual_events_path):
         df_main = load_manual_events(df_main, args.manual_events_path)
@@ -401,23 +373,14 @@ def main(args):
 
     expected_sequences = {'fast': ['right','left','right','up','down','up']*3, 'slow': ['right','left','right','up','down','up','down','up','right','left','right','up','down','up','down','right','left','right','up','down']}
     
-    # --- NUOVO: Calcola le metriche sull'intero dataframe prima di splittare ---
     if args.run_excursion_analysis:
         print("\nINFO: Calcolo delle metriche di escursione richiesto.")
-        # Calcola le metriche e le unisce al dataframe principale
-        df_excursion = calculate_excursion(df_main.copy(), args.excursion_success_threshold)
-        df_directional = calculate_directional_excursion(df_main.copy(), args.directional_excursion_edge_threshold)
-
-        # Unisci i risultati usando 'trial_id' come chiave
-        df_main = df_main.merge(df_excursion[['trial_id', 'excursion_perc_frames', 'excursion_success']].drop_duplicates('trial_id'), on='trial_id', how='left')
-        df_main = df_main.merge(df_directional[['trial_id', 'dir_ex_line_coord', 'directional_excursion_reached', 'directional_excursion_success']].dropna(subset=['trial_id']).drop_duplicates('trial_id'), on='trial_id', how='left')
-
-        # Calcola la percentuale di inseguimento progressiva per i video
+        df_main = calculate_excursion(df_main, args.excursion_success_threshold)
+        df_main = calculate_directional_excursion(df_main, args.directional_excursion_edge_threshold)
         df_main = calculate_running_gaze_in_box_percentage(df_main)
 
     general_summary_list = []
 
-    # Esegui l'analisi di frammentazione sull'intero dataset, se richiesto
     if args.run_fragmentation_analysis:
         generate_fragmentation_plots(df_main, df_cuts, plot_dir)
         
@@ -433,47 +396,34 @@ def main(args):
 
         if not (hasattr(args, 'manual_events_path') and args.manual_events_path and os.path.exists(args.manual_events_path)):
             validate_movement_sequence(df_center_out, expected_sequences.get(segment_name, []), segment_name)
-
-        # Aggiorna i dataframe di segmento e trial con le nuove colonne (se calcolate)
-        df_segment = df_main[(df_main['frame'] >= cut_row['start_frame']) & (df_main['frame'] <= cut_row['end_frame'])].copy()
-        df_center_out = df_segment[df_segment['trial_id'] > 0].copy()
-
-        # Dizionario per aggregare i dati
+        
         agg_dict = {
             'avg_gaze_in_box_perc': ('gaze_in_box', 'mean'),
             'avg_gaze_speed': ('gaze_speed', 'mean'),
             'trial_count': ('trial_id', 'nunique')
         }
-        if PUPIL_COL_NAME in df_center_out and df_center_out[PUPIL_COL_NAME].notna().any():
+        if PUPIL_COL_NAME in df_center_out.columns and df_center_out[PUPIL_COL_NAME].notna().any():
             agg_dict['diametro_pupillare_medio'] = (PUPIL_COL_NAME, 'mean')
         
-        # Aggiungi le metriche di escursione al dizionario se presenti
         if 'excursion_success' in df_center_out.columns:
             agg_dict['excursion_success_perc'] = ('excursion_success', 'mean')
         if 'excursion_perc_frames' in df_center_out.columns:
             agg_dict['avg_excursion_perc_frames'] = ('excursion_perc_frames', 'mean')
         if 'directional_excursion_success' in df_center_out.columns:
             agg_dict['directional_excursion_success_perc'] = ('directional_excursion_success', 'mean')
-        if 'directional_excursion_reached' in df_center_out.columns:
-            agg_dict['avg_directional_excursion_reached'] = ('directional_excursion_reached', 'mean')
 
         summary = df_center_out.groupby('direction_simple').agg(**agg_dict).reset_index()
         summary['avg_gaze_in_box_perc'] *= 100
         if 'directional_excursion_success_perc' in summary: summary['directional_excursion_success_perc'] *= 100
         if 'excursion_success_perc' in summary: summary['excursion_success_perc'] *= 100
 
-        # Calcolo del diametro pupillare medio per trial
-        if PUPIL_COL_NAME in df_center_out.columns:
-            pupil_per_trial = df_center_out.groupby('trial_id')[PUPIL_COL_NAME].mean().reset_index()
-            pupil_per_trial.rename(columns={PUPIL_COL_NAME: 'diametro_pupillare_medio_trial'}, inplace=True)
-            df_center_out = pd.merge(df_center_out, pupil_per_trial, on='trial_id', how='left')
-
-            # Aggiungi il diametro pupillare medio per trial al summary
-            trial_details = df_center_out[['trial_id', 'direction_simple']].drop_duplicates()
-            summary_pupil = pd.merge(trial_details, pupil_per_trial, on='trial_id', how='left')
-            summary_pupil_agg = summary_pupil.groupby('direction_simple')['diametro_pupillare_medio_trial'].mean().reset_index()
-            summary = pd.merge(summary, summary_pupil_agg, on='direction_simple', how='left')
-
+        if PUPIL_COL_NAME in df_center_out.columns and df_center_out[PUPIL_COL_NAME].notna().any():
+            # Calcola la media per ogni singolo frame all'interno del trial
+            df_center_out['diametro_pupillare_medio_trial'] = df_center_out.groupby('trial_id')[PUPIL_COL_NAME].transform('mean')
+            
+            # Calcola la media delle medie dei trial, raggruppando per direzione
+            pupil_summary = df_center_out.drop_duplicates('trial_id').groupby('direction_simple')['diametro_pupillare_medio_trial'].mean().reset_index()
+            summary = pd.merge(summary, pupil_summary, on='direction_simple', how='left')
 
         summary.to_excel(writer, sheet_name=f"Riepilogo_{segment_name}", index=False)
         df_center_out.to_excel(writer, sheet_name=f"Dettagli_{segment_name}", index=False)
@@ -484,14 +434,12 @@ def main(args):
             'velocita_sguardo_media': df_center_out['gaze_speed'].mean(),
             'numero_trial_validi': df_center_out['trial_id'].nunique()
         }
-        if PUPIL_COL_NAME in df_center_out and df_center_out[PUPIL_COL_NAME].notna().any():
+        if PUPIL_COL_NAME in df_center_out.columns and df_center_out[PUPIL_COL_NAME].notna().any():
             gen_sum['diametro_pupillare_medio'] = df_center_out[PUPIL_COL_NAME].mean()
         if 'excursion_success' in df_center_out.columns:
             gen_sum['escursione_successo_perc'] = df_center_out['excursion_success'].mean() * 100
-            gen_sum['escursione_perc_frames_media'] = df_center_out['excursion_perc_frames'].mean()
         if 'directional_excursion_success' in df_center_out.columns:
             gen_sum['escursione_direzionale_successo_perc'] = df_center_out['directional_excursion_success'].mean() * 100
-            gen_sum['escursione_direzionale_raggiunta_perc_media'] = df_center_out['directional_excursion_reached'].mean()
         general_summary_list.append(gen_sum)
 
         for direction in summary['direction_simple'].unique():
@@ -505,7 +453,6 @@ def main(args):
     
     writer.close()
 
-    # --- NUOVO: Salva il dataframe completo di metriche per la generazione video ---
     final_csv_path = os.path.join(args.output_dir, 'output_final_analysis_with_metrics.csv')
     df_main.to_csv(final_csv_path, index=False)
     print(f"\nINFO: Dati di analisi completi con metriche salvati in '{final_csv_path}'")
