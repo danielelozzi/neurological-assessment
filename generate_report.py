@@ -127,16 +127,18 @@ def add_pupil_data(df_main, base_dir):
         df_main['world_timestamp_dt'] = pd.to_datetime(df_main['world_timestamp_ns'], unit='ns')
     else:
         print("ATTENZIONE: Colonna 'world_timestamp_ns' non trovata. Uso il numero di frame come proxy per il timestamp (meno preciso).")
-        df_main['world_timestamp_dt'] = pd.to_datetime(df_main['frame'].astype(int)) # Fallback
+        # Per evitare conflitti di tipo, creiamo una colonna temporanea per il merge
+        df_main['merge_key_dt'] = pd.to_datetime(df_main['frame'].astype(int))
     
     merged_df = pd.merge_asof(
-        df_main.sort_values('world_timestamp_dt'),
+        df_main.sort_values('world_timestamp_dt' if 'world_timestamp_dt' in df_main else 'merge_key_dt'),
         df_pupil[['pupil_timestamp_dt', PUPIL_COL_NAME]].sort_values('pupil_timestamp_dt'),
-        left_on='world_timestamp_dt',
+        left_on='world_timestamp_dt' if 'world_timestamp_dt' in df_main else 'merge_key_dt',
         right_on='pupil_timestamp_dt',
         direction='nearest',
         tolerance=pd.Timedelta('100ms')
     )
+    if 'merge_key_dt' in merged_df.columns: merged_df.drop(columns=['merge_key_dt'], inplace=True)
     return merged_df
 
 def generate_gaze_heatmap(df_gaze, width, height, output_path):
