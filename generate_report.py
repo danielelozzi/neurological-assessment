@@ -462,6 +462,19 @@ def main(args):
         if 'directional_excursion_success_perc' in summary: summary['directional_excursion_success_perc'] *= 100
         if 'excursion_success_perc' in summary: summary['excursion_success_perc'] *= 100
 
+        # Calcolo del diametro pupillare medio per trial
+        if PUPIL_COL_NAME in df_center_out.columns:
+            pupil_per_trial = df_center_out.groupby('trial_id')[PUPIL_COL_NAME].mean().reset_index()
+            pupil_per_trial.rename(columns={PUPIL_COL_NAME: 'diametro_pupillare_medio_trial'}, inplace=True)
+            df_center_out = pd.merge(df_center_out, pupil_per_trial, on='trial_id', how='left')
+
+            # Aggiungi il diametro pupillare medio per trial al summary
+            trial_details = df_center_out[['trial_id', 'direction_simple']].drop_duplicates()
+            summary_pupil = pd.merge(trial_details, pupil_per_trial, on='trial_id', how='left')
+            summary_pupil_agg = summary_pupil.groupby('direction_simple')['diametro_pupillare_medio_trial'].mean().reset_index()
+            summary = pd.merge(summary, summary_pupil_agg, on='direction_simple', how='left')
+
+
         summary.to_excel(writer, sheet_name=f"Riepilogo_{segment_name}", index=False)
         df_center_out.to_excel(writer, sheet_name=f"Dettagli_{segment_name}", index=False)
 
