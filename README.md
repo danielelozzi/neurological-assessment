@@ -135,7 +135,10 @@ Questi parametri vengono passati agli script di analisi quando si clicca su "Avv
 
 ## 📋 Prerequisiti
 
-È necessario acquisire i dati con **Pupil Labs Neon**, usare gli **AprilTag** e processare la registrazione su **Pupil Cloud** con gli enrichment **Marker Mapper** e **3D Eye States**.  
+È necessario acquisire i dati con **Pupil Labs Neon**, usare gli **AprilTag** e processare la registrazione su **Pupil Cloud** con gli enrichment **Marker Mapper**.  
+
+Successivamente, scaricare Time Series Data e QR Mark Mapper data. 
+
 La cartella scaricata da Pupil Cloud deve contenere i file:
 
 - `video.mp4` - Da Time Series folder
