@@ -138,27 +138,61 @@ Questi parametri vengono passati agli script di analisi quando si clicca su "Avv
 È necessario acquisire i dati con **Pupil Labs Neon**, usare gli **AprilTag** e processare la registrazione su **Pupil Cloud** con gli enrichment **Marker Mapper** e **3D Eye States**.  
 La cartella scaricata da Pupil Cloud deve contenere i file:
 
-- `video.mp4`
-- `gaze.csv`
-- `world_timestamps.csv`
-- `surface_positions.csv`
-- `3d_eye_states.csv` (opzionale, ma necessario per l'analisi pupillometrica)
+- `video.mp4` - Da Time Series folder
+- `gaze.csv`- Da QR Mark Mapper folder
+- `world_timestamps.csv` - Da Time Series folder
+- `surface_positions.csv`- Da QR Mark Mapper folder
+- `3d_eye_states.csv` (opzionale, ma necessario per l'analisi pupillometrica)  - Da Time Series folder
 
 > **Nota**: Se il file `3d_eye_states.csv` non è presente, il software funzionerà comunque ma salterà tutte le metriche relative al diametro pupillare.
 
 ---
 
-## 🛠️ Installazione
+## 🛠️ Installazione ⚙️
+To run the project from source or contribute to development, you'll need Python 3 and several libraries.
 
-Crea un ambiente conda:
+1. **Install Anaconda**: [Link](https://www.anaconda.com/)
+2. *(Optional)* Install CUDA Toolkit: For GPU acceleration with NVIDIA. [Link](https://developer.nvidia.com/cuda-downloads)
+3. **Create a virtual environment**:
+
+Open Anaconda Prompt
+
 ```bash
-conda create --name cna-env python=3.10 -y
-conda activate cna-env
+conda create --name neurological-assessment
+conda activate neurological-assessment
+conda install pip
+conda install git
+git clone https://github.com/danielelozzi/neurological-assessment.git
+```
+4. **Install the required libraries**:
+
+enter in the neurological-assessment folder
+
+```bash
+cd neurological-assessment
 ```
 
-Installa le librerie:
+install requirements
+
 ```bash
 pip install -r requirements.txt
+```
+5. **(optional) Install Pytorch CUDA**:
+
+[https://pytorch.org/get-started/locally/](https://pytorch.org/get-started/locally/)
+
+```bash
+<command>
+```
+---
+
+## How to Use the Application from Source 🚀
+### Launch the GUI:
+```bash
+# Navigate to the desktop_app folder
+cd neurological-assessment
+conda activate neurological-assessment
+python gui_main.py
 ```
 
 ---
