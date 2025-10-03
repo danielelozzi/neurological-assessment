@@ -13,6 +13,8 @@ L'obiettivo è automatizzare e standardizzare l'analisi delle performance visuo-
 
 ## 🚀 Modalità di Lavoro
 
+**ATTUALMENTE SI DEVE USARE SOLO LA MODALITà HOUGH CIRCLE**
+
 ### 1. Modalità Automatica (Default)
 Questa è la modalità standard. Il software esegue l'intera pipeline con il minimo intervento manuale:
 
@@ -199,6 +201,8 @@ python gui_main.py
 ```
 
 ---
+
+
 
 ## 📊 Output del Progetto
 
