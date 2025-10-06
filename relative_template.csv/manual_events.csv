@@ -13,7 +13,7 @@ fast,up,597,617
 fast,down,640,660
 slow,right,880,990
 slow,left,991,1080
-slow,left,1081,1201
+slow,right,1081,1201
 slow,up,1202,1319
 slow,down,1320,1407
 slow,up,1408,1530
