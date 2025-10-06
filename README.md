@@ -10,7 +10,7 @@
 
 **Codice:** Dr. Daniele Lozzi  
 
-**Dati**: Dr.ssa Ilaria Di Pompeo, Dr.ssa Martina Marcaccio
+**Verifica dei dati**: Dr.ssa Ilaria Di Pompeo, Dr.ssa Martina Marcaccio
 
 
 Questo repository contiene una pipeline software completa per l'analisi del movimento oculare e della pupillometria in relazione al movimento di un cerchio su uno schermo. L'intero processo è gestito da un'unica interfaccia grafica (GUI) che orchestra l'elaborazione dei dati.
