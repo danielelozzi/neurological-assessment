@@ -13,7 +13,7 @@ L'obiettivo è automatizzare e standardizzare l'analisi delle performance visuo-
 
 ## 🚀 Modalità di Lavoro
 
-**ATTUALMENTE SI DEVE USARE SOLO LA MODALITà HOUGH CIRCLE**
+**ATTUALMENTE SI CONSIGLIA DI USARE CALDAMENTE LA MODALITà HOUGH CIRCLE**
 
 ### 1. Modalità Automatica (Default)
 Questa è la modalità standard. Il software esegue l'intera pipeline con il minimo intervento manuale:
@@ -32,6 +32,10 @@ Per un controllo granulare, è possibile definire manualmente sia i segmenti che
 La GUI è organizzata in sezioni per gestire i dati in modo intuitivo. Di seguito sono descritte le principali modalità di lavoro manuali e ibride.
 
 ---
+
+### Template Verificato (Saccadici Renato)
+
+È stato creato e validato da tre esperti un template a tempi relativi basato sulla presentazione `Saccadici_renato_aggiornato.pptx`. Questo template è stato progettato per essere utilizzato con la modalità "Template a Tempi Fissi" (descritta di seguito) per garantire la massima coerenza e riproducibilità delle analisi per questo specifico paradigma.
 
 ### A. Template a Tempi Fissi (Consigliato per Paradigmi Standard)
 Questa modalità è la più potente e precisa per analizzare esperimenti che seguono una temporizzazione predefinita e ripetibile. Permette di saltare completamente la ricerca automatica e l'etichettatura manuale, garantendo massima coerenza tra le analisi.
@@ -137,13 +141,13 @@ Questi parametri vengono passati agli script di analisi quando si clicca su "Avv
 
 ## 📋 Prerequisiti
 
-È necessario acquisire i dati con **Pupil Labs Neon**, usare gli **AprilTag** e processare la registrazione su **Pupil Cloud** con gli enrichment **Marker Mapper**.  
+È necessario acquisire i dati con **Pupil Labs Neon**, usare gli **AprilTag** e processare la registrazione su **Pupil Cloud** con l'enrichment **Marker Mapper**.  
 
-Successivamente, scaricare Time Series Data e QR Mark Mapper data. 
+Successivamente, scaricare i dati "Time Series Data" e "QR Marker Mapper data". 
 
 La cartella scaricata da Pupil Cloud deve contenere i file:
 
-- `video.mp4` - Da Time Series folder
+- `video.mp4` - Dalla cartella Time Series
 - `gaze.csv`- Da QR Mark Mapper folder
 - `world_timestamps.csv` - Da Time Series folder
 - `surface_positions.csv`- Da QR Mark Mapper folder
