@@ -125,6 +125,11 @@ def main(args):
             if pd.notna(row['directional_excursion_success']) and row['directional_excursion_success']:
                 draw_text(warped_frame, "OBIETTIVO RAGGIUNTO", (10, 90), color=(0, 255, 255), bg_color=(0,0,0,0.5))
 
+            # 6. Nome dell'evento corrente
+            if pd.notna(row['direction_simple']):
+                event_text = f"EVENTO: {str(row['direction_simple']).upper()}"
+                draw_text(warped_frame, event_text, (10, 120), color=(255, 165, 0), bg_color=(0,0,0,0.5))
+
             if out:
                 out.write(warped_frame)
 
