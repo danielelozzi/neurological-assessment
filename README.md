@@ -1,10 +1,17 @@
 # Strumento di Analisi dei dati dell'Assessment Neurologico Computerizzato (CNA)
 
 **LabSCoC (Laboratorio di Scienze Cognitive e del Comportamento)**  
+
 **Sito Web Lab:** [labscoc.wordpress.com](https://labscoc.wordpress.com)  
+
 **PIs:** Prof. Giuseppe Curcio, Prof. Simone Migliore
+
 **Concettualizzazione:** Dr. Massimo Marano  
+
 **Codice:** Dr. Daniele Lozzi  
+
+**Dati**: Dr.ssa Ilaria Di Pompeo, Dr.ssa Martina Marcaccio
+
 
 Questo repository contiene una pipeline software completa per l'analisi del movimento oculare e della pupillometria in relazione al movimento di un cerchio su uno schermo. L'intero processo è gestito da un'unica interfaccia grafica (GUI) che orchestra l'elaborazione dei dati.
 
@@ -139,23 +146,56 @@ Questi parametri vengono passati agli script di analisi quando si clicca su "Avv
 
 ---
 
-## 📋 Prerequisiti
+## ⚙️ Acquisizione e Preparazione dei Dati
 
-È necessario acquisire i dati con **Pupil Labs Neon**, usare gli **AprilTag** e processare la registrazione su **Pupil Cloud** con l'enrichment **Marker Mapper**.  
+Per garantire che i dati siano compatibili con la pipeline di analisi, è fondamentale seguire una procedura di registrazione e processamento standardizzata.
 
-Successivamente, scaricare i dati "Time Series Data" e "QR Marker Mapper data". 
+### 1. Setup per la Registrazione (Pupil Neon + PowerPoint)
 
-La cartella scaricata da Pupil Cloud deve contenere i file:
+Questa sezione descrive come impostare l'ambiente per una corretta acquisizione dei dati.
 
-- `video.mp4` - Dalla cartella Time Series
-- `gaze.csv`- Da QR Mark Mapper folder
-- `world_timestamps.csv` - Da Time Series folder
-- `surface_positions.csv`- Da QR Mark Mapper folder
-- `3d_eye_states.csv` (opzionale, ma necessario per l'analisi pupillometrica)  - Da Time Series folder
+1.  **Preparazione dello Schermo**:
+    *   Apri la presentazione PowerPoint (es. `Saccadici_renato_aggiornato.pptx`) sul computer che verrà utilizzato per il test.
+    *   **Applica quattro AprilTag** ai quattro angoli dello schermo. Questi marker sono essenziali perché permettono a Pupil Cloud di identificare l'area dello schermo e correggere la prospettiva. Assicurati che siano ben visibili e non coperti.
+
+2.  **Avvio della Registrazione**:
+    *   Fai indossare al partecipante gli occhiali **Pupil Labs Neon**.
+    *   Avvia la registrazione tramite l'app Neon sul dispositivo companion (smartphone).
+    *   Avvia la presentazione PowerPoint in modalità "Presentazione" a schermo intero.
+
+3.  **Esecuzione del Test**:
+    *   Il partecipante deve seguire le istruzioni a schermo, in particolare il movimento della palla.
+
+4.  **Fine della Registrazione**:
+    *   Al termine della presentazione, interrompi la registrazione dall'app Neon.
+    *   Carica la registrazione su **Pupil Cloud**.
+
+### 2. Processamento su Pupil Cloud e Download dei Dati
+
+Una volta che la registrazione è su Pupil Cloud, deve essere processata per generare i file necessari all'analisi.
+
+1.  **Applica l'Enrichment "Marker Mapper"**:
+    *   All'interno del progetto su Pupil Cloud, seleziona la registrazione e vai alla sezione "Enrichments".
+    *   Aggiungi e avvia l'enrichment **Marker Mapper**. Questo algoritmo utilizzerà gli AprilTag per mappare lo sguardo sulla superficie dello schermo.
+
+2.  **Scarica i Dati Corretti**:
+    *   Dopo che l'enrichment ha terminato, scarica i dati. È fondamentale scaricare due pacchetti separati:
+        *   **Time Series Data**: Contiene il video principale e i dati temporali.
+        *   **QR Marker Mapper data**: Contiene i dati dello sguardo già mappati sulla superficie dello schermo.
+    *   Decomprimi entrambi gli archivi e unisci i file richiesti in un'unica **cartella di input** per il nostro software.
+
+### 3. File Richiesti nella Cartella di Input
+
+La cartella che fornirai al software di analisi deve contenere i seguenti file:
+
+- **`video.mp4`**: Dalla cartella "Time Series Data".
+- **`gaze.csv`**: Dalla cartella "QR Marker Mapper data".
+- **`world_timestamps.csv`**: Dalla cartella "Time Series Data".
+- **`surface_positions.csv`**: Dalla cartella "QR Marker Mapper data".
+- **`3d_eye_states.csv`** (Opzionale): Dalla cartella "Time Series Data". Necessario solo per l'analisi pupillometrica.
 
 > **Nota**: Se il file `3d_eye_states.csv` non è presente, il software funzionerà comunque ma salterà tutte le metriche relative al diametro pupillare.
 
----
 
 ## 🛠️ Installazione ⚙️
 To run the project from source or contribute to development, you'll need Python 3 and several libraries.
