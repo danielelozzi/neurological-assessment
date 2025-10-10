@@ -360,3 +360,137 @@ Questi sono i fogli più granulari e contengono i dati calcolati per ogni singol
 | **`excursion_success`** | Valore booleano (`True`/`False`) che indica se il trial a cui questo frame appartiene è stato un successo di inseguimento (è lo stesso valore per tutti i frame dello stesso `trial_id`). |
 | **`directional_excursion_reached`** | Valore numerico (1.0/0.0) che indica se il trial a cui questo frame appartiene ha raggiunto la destinazione. |
 | **`directional_excursion_success`** | Valore booleano (`True`/`False`) che indica se il trial a cui questo frame appartiene è stato un successo di raggiungimento della destinazione. |
+
+---
+
+## 📚 Appendice A: Analisi Dettagliata di un Flusso di Lavoro
+
+Questa sezione descrive in dettaglio il flusso di elaborazione dati per uno scenario specifico e consigliato:
+
+-   **Metodo di Input**: Template a Tempi Relativi (`Carica Template a Tempi Fissi`).
+-   **Definizione Onset**: Inserimento manuale del frame di inizio.
+-   **Rilevamento Palla**: Trasformata di Hough (`Hough Circle`).
+
+### Fase 1: Configurazione e Preparazione (GUI)
+
+L'utente avvia l'analisi attraverso l'interfaccia grafica (`main_gui.py`).
+
+1.  **Caricamento Template**: L'utente clicca su **"Carica Template a Tempi Fissi (da CSV)"**.
+    -   **File Input**: Viene selezionato un file CSV (es. `template_relativo.csv`).
+    -   **Colonne Lette**: `event_type`, `direction`, `relative_start`, `relative_end`.
+
+2.  **Definizione Onset**: Il software chiede come definire il punto "zero" del template. L'utente sceglie **"Inserisci Manualmente"**.
+    -   **Input Utente**: Viene inserito un numero intero, che rappresenta il frame di inizio del segmento `fast` nel video. Chiamiamo questo valore `onset_frame`.
+
+3.  **Calcolo Tempi Assoluti**: Il software ora traduce il template relativo in tempi assoluti per il video corrente.
+    -   Legge il file template riga per riga.
+    -   Per ogni riga, calcola i frame assoluti con le seguenti formule:
+        -   `start_frame_assoluto = relative_start + onset_frame`
+        -   `end_frame_assoluto = relative_end + onset_frame`
+
+4.  **Generazione File Intermedi**:
+    -   **`manual_events_fixed.csv`**: Viene creato un nuovo file CSV nella cartella di output. Questo file contiene solo gli eventi di tipo `trial` (i movimenti U/D/L/R) con i loro tempi assoluti appena calcolati. Le colonne sono: `segment_name`, `direction_simple`, `start_frame`, `end_frame`. Questo file diventa la "verità assoluta" per la definizione dei trial.
+    -   **`cut_points.csv`**: Poiché i campi dei segmenti `fast` e `slow` sono stati popolati nella GUI, il software salta la ricerca automatica (OCR) e scrive direttamente questo file nella cartella di output. Contiene i frame di inizio e fine dei due segmenti principali. Colonne: `segment_name`, `start_frame`, `end_frame`.
+
+5.  **Avvio Analisi**: L'utente clicca su **"Avvia Analisi Completa"**.
+
+### Fase 2: Rilevamento e Sincronizzazione (`detect_and_save_ball.py`)
+
+Questo script è il cuore dell'analisi frame per frame.
+
+1.  **Allineamento Dati**:
+    -   **File Input**: `world_timestamps.csv` e `gaze.csv`.
+    -   **Colonne Lette**:
+        -   Da `world_timestamps.csv`: `world_index` (o `# frame_idx`), `timestamp [ns]`.
+        -   Da `gaze.csv`: `timestamp [ns]`, `gaze detected on surface`, `gaze position on surface x [normalized]`, `gaze position on surface y [normalized]`.
+    -   **Processo**: Esegue un `pandas.merge_asof` tra i due file, usando i timestamp come chiave. Questo allinea ogni frame del video (`world_index`) con il dato di sguardo (`gaze`) più vicino nel tempo (con una tolleranza di 100ms). Il risultato è un dataframe `aligned_gaze_data` che contiene, per ogni frame, le coordinate dello sguardo corrispondenti.
+
+2.  **Ciclo di Analisi sui Segmenti**:
+    -   Lo script legge `cut_points.csv` per sapere quali intervalli di frame analizzare (es. da frame 150 a 9750 per il segmento `fast`).
+    -   Per ogni frame all'interno di questi intervalli:
+        a.  **Correzione Prospettiva**:
+            -   **File Input**: `surface_positions.csv`.
+            -   **Colonne Lette**: `world_index`, `tl x/y [px]`, `tr x/y [px]`, `br x/y [px]`, `bl x/y [px]`.
+            -   **Processo**: Trova le coordinate dei 4 AprilTag per il frame corrente e usa `cv2.getPerspectiveTransform` e `cv2.warpPerspective` per "raddrizzare" l'immagine, isolando solo lo schermo.
+
+        b.  **Rilevamento Palla (Hough Circle)**:
+            -   **Ottimizzazione Parametri (una tantum)**: Al primo frame valido di un segmento, lo script esegue la funzione `find_optimal_hough_params`. Questa funzione testa diverse combinazioni di parametri per `cv2.HoughCircles` (`param1`, `param2`, `minRadius`, `maxRadius`) fino a trovare una configurazione che rileva **esattamente un cerchio**. Questi parametri ottimali vengono poi usati per tutto il resto del segmento.
+            -   **Rilevamento**: Sul frame raddrizzato, esegue `cv2.HoughCircles` con i parametri ottimali per trovare la posizione `(x, y)` e il raggio `r` della palla.
+            -   **Normalizzazione**: Converte le coordinate in pixel della palla in coordinate normalizzate (da 0 a 1) dividendo per la larghezza e l'altezza del frame raddrizzato.
+
+        c.  **Calcolo `gaze_in_box`**:
+            -   **Processo**: Determina se lo sguardo si trova sulla palla.
+            -   **Formula**:
+                1.  Crea un "bounding box" attorno alla palla rilevata.
+                2.  Aumenta le dimensioni di questo box in base al parametro `Padding Box Inseguimento (%)` impostato nella GUI.
+                3.  Converte le coordinate normalizzate dello sguardo (`gaze_x_norm`, `gaze_y_norm`) in coordinate pixel.
+                4.  Controlla se le coordinate pixel dello sguardo cadono all'interno del box allargato.
+            -   **Output**: Una colonna booleana `gaze_in_box` (`True` o `False`).
+
+3.  **Salvataggio Risultati Intermedi**:
+    -   **File Output**: `output_final_analysis_analysis.csv`.
+    -   **Colonne Scritte**: Per ogni frame analizzato, salva una riga contenente `frame`, `ball_center_x_norm`, `ball_center_y_norm`, `gaze_x_norm`, `gaze_y_norm`, `gaze_in_box`, `segment_name`, e altre.
+
+### Fase 3: Generazione Report e Metriche (`generate_report.py`)
+
+Questo script prende i dati grezzi calcolati nella fase precedente e li trasforma in metriche significative.
+
+1.  **Caricamento Dati**:
+    -   **File Input**: `output_final_analysis_analysis.csv` e `manual_events_fixed.csv`.
+
+2.  **Etichettatura dei Trial**:
+    -   **Processo**: Lo script **salta completamente l'identificazione automatica dei trial**. Usa `manual_events_fixed.csv` come unica fonte di verità.
+    -   Per ogni riga in `manual_events_fixed.csv` (es. `right, start: 350, end: 430`), assegna l'etichetta `direction_simple: 'right'` e un `trial_id` univoco a tutti i frame compresi tra 350 e 430 nel dataframe principale.
+
+3.  **Aggiunta Dati Pupillari**:
+    -   **File Input**: `3d_eye_states.csv` (se presente).
+    -   **Colonne Lette**: `timestamp [ns]`, `pupil diameter left [mm]`, `pupil diameter right [mm]`.
+    -   **Processo**: Calcola il diametro medio tra occhio destro e sinistro (`pupil_diameter_mean`). Esegue un `merge_asof` con il dataframe principale usando i timestamp per sincronizzare il dato pupillare con ogni frame.
+
+4.  **Calcolo Metriche di Performance** (se le opzioni sono attive nella GUI):
+    -   **`escursione_successo_perc`**:
+        -   **Formula per Trial**: Per ogni `trial_id`, calcola `mean(gaze_in_box)`.
+        -   **Formula per Successo**: Il trial è un successo se `mean(gaze_in_box) >= Soglia Successo Escursione` (es. 0.80).
+        -   **Metrica Finale**: `(Numero di trial di successo / Numero totale di trial) * 100`.
+
+    -   **`escursione_direzionale_successo_perc`**:
+        -   **Processo per Trial**: Per ogni `trial_id`:
+            1.  Identifica la direzione (es. `right`).
+            2.  Trova la posizione più estrema raggiunta dalla palla in quella direzione (es. `max(ball_center_x_norm)`).
+            3.  Definisce una "linea del traguardo" virtuale basata su questa posizione e sulla `Soglia Bordo Esc. Direzionale (%)`.
+            4.  Controlla se lo sguardo (`gaze_x_norm`) ha mai superato questa linea durante il trial.
+        -   **Metrica Finale**: `(Numero di trial con traguardo raggiunto / Numero totale di trial) * 100`.
+
+5.  **Aggregazione e Scrittura Report**:
+    -   **Processo**: Raggruppa i dati per segmento (`fast`, `slow`) e per direzione (`up`, `down`, etc.).
+    -   Calcola le medie e le percentuali per tutte le metriche.
+    -   **File Output**: `final_report.xlsx`.
+    -   **Fogli Creati**:
+        -   `Riepilogo_Generale`: Confronto delle metriche aggregate tra i segmenti `fast` e `slow`.
+        -   `Riepilogo_fast` / `Riepilogo_slow`: Metriche aggregate per ogni direzione, all'interno di un segmento.
+        -   `Dettagli_fast` / `Dettagli_slow`: Dati grezzi, frame per frame, per ogni trial.
+
+6.  **Salvataggio Dati Finali**:
+    -   **File Output**: `output_final_analysis_with_metrics.csv`.
+    -   **Contenuto**: Il dataframe completo con tutte le colonne calcolate, pronto per la fase successiva.
+
+### Fase 4: Generazione Video con Overlay (`generate_video.py`)
+
+Questo script finale crea una visualizzazione dei risultati.
+
+1.  **Caricamento Dati**:
+    -   **File Input**: `output_final_analysis_with_metrics.csv`, `video.mp4`, `surface_positions.csv`.
+
+2.  **Ciclo di Disegno**:
+    -   Crea un video writer per ogni segmento (`final_video_fast.mp4`, `final_video_slow.mp4`).
+    -   Per ogni riga del file CSV (corrispondente a un frame):
+        a.  Esegue la correzione della prospettiva come nella Fase 2.
+        b.  Disegna sul frame raddrizzato:
+            -   Un **cerchio** per la posizione dello sguardo (`gaze_x_norm`, `gaze_y_norm`). Il colore è giallo se `gaze_in_box` è `True`, altrimenti rosso.
+            -   Un **rettangolo blu** per il box di inseguimento allargato.
+            -   **Testo informativo**: Percentuale di inseguimento, successo del trial, nome dell'evento, etc., leggendo le colonne calcolate nella Fase 3.
+            -   Una **linea gialla** per la soglia dell'escursione direzionale, se applicabile.
+
+3.  **Salvataggio Video**:
+    -   **File Output**: `final_video_fast.mp4`, `final_video_slow.mp4`.
+    -   I video finali contengono tutti gli overlay visivi, fornendo un riscontro immediato e qualitativo dell'analisi quantitativa.
