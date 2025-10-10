@@ -140,14 +140,14 @@ class InteractiveFrameSelector(tk.Toplevel):
         if h > max_h:
             ratio = max_h / h
             new_w, new_h = int(w * ratio), int(h * ratio)
-            # CORREZIONE 1: Usa Image.Resampling.LANCZOS
-            img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            # CORREZIONE 1: Usa Image.Resampling.LANCZOS (era già corretto, lo confermo)
+            img = img.resize((new_w, new_h), Image.Resampling.LANCZOS) # ANTIALIAS è deprecato
 
         photo = ImageTk.PhotoImage(image=img)
         self.video_label.config(image=photo)
         
-        # CORREZIONE 2: Mantiene un riferimento per evitare la garbage collection e dice a Pylance di ignorare il falso positivo
-        self.video_label.image = photo # type: ignore
+        # CORREZIONE 2: Mantiene un riferimento all'immagine per evitare che venga eliminata dal garbage collector, causando un segfault.
+        self.video_label.image = photo  # type: ignore
         
         self.frame_info_label.config(text=f"Frame: {self.current_frame_num} / {self.total_frames}")
 
