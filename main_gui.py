@@ -18,6 +18,7 @@ import generate_report
 import generate_video
 # MODIFICA: Importa entrambe le classi dal selettore interattivo
 from interactive_selector import InteractiveVideoSelector, SingleFrameSelector
+from file_organizer import organize_files
 
 class StdoutRedirector:
     # ... (questa classe rimane invariata)
@@ -95,6 +96,12 @@ class MainApp(ctk.CTk):
         main_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
         main_frame.grid_columnconfigure(1, weight=1)
 
+        # --- NUOVO: Pulsante per organizzare i dati ---
+        organizer_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        organizer_frame.grid(row=0, column=0, columnspan=3, sticky="ew", padx=5, pady=(5,15))
+        ctk.CTkButton(organizer_frame, text="✨ 0. Organizza Dati da ZIP", command=self.run_organizer, height=35, font=ctk.CTkFont(weight="bold")).pack(fill="x", padx=10, pady=5)
+        # --- FINE ---
+
         self.input_dir = ctk.StringVar()
         self.output_dir = ctk.StringVar()
         self.yolo_model_path = ctk.StringVar()
@@ -114,15 +121,15 @@ class MainApp(ctk.CTk):
                     self.fast_start_frame, self.fast_end_frame, self.slow_start_frame, self.slow_end_frame]:
             var.trace_add("write", self.check_inputs_callback)
 
-        ctk.CTkLabel(main_frame, text="1. Cartella Input:").grid(row=0, column=0, padx=10, pady=10, sticky="w")
-        ctk.CTkEntry(main_frame, textvariable=self.input_dir).grid(row=0, column=1, padx=10, pady=10, sticky="ew")
-        ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_input_dir, width=100).grid(row=0, column=2, padx=10, pady=10)
-        ctk.CTkLabel(main_frame, text="2. Cartella Output:").grid(row=1, column=0, padx=10, pady=10, sticky="w")
-        ctk.CTkEntry(main_frame, textvariable=self.output_dir).grid(row=1, column=1, padx=10, pady=10, sticky="ew")
-        ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_output_dir, width=100).grid(row=1, column=2, padx=10, pady=10)
+        ctk.CTkLabel(main_frame, text="1. Cartella Input:").grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        ctk.CTkEntry(main_frame, textvariable=self.input_dir).grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+        ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_input_dir, width=100).grid(row=1, column=2, padx=10, pady=10)
+        ctk.CTkLabel(main_frame, text="2. Cartella Output:").grid(row=2, column=0, padx=10, pady=10, sticky="w")
+        ctk.CTkEntry(main_frame, textvariable=self.output_dir).grid(row=2, column=1, padx=10, pady=10, sticky="ew")
+        ctk.CTkButton(main_frame, text="Seleziona...", command=self.select_output_dir, width=100).grid(row=2, column=2, padx=10, pady=10)
 
         self.auto_detection_frame = ctk.CTkFrame(main_frame)
-        self.auto_detection_frame.grid(row=2, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
+        self.auto_detection_frame.grid(row=3, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         self.auto_detection_frame.grid_columnconfigure(1, weight=1)
         ctk.CTkLabel(self.auto_detection_frame, text="3. Metodo Rilevamento Palla:").grid(row=0, column=0, padx=10, pady=10, sticky="w")
         ctk.CTkSegmentedButton(self.auto_detection_frame, values=["YOLO", "Hough Circle"], variable=self.detection_method, command=self.check_inputs_callback).grid(row=0, column=1, columnspan=2, padx=10, pady=10, sticky="w")
@@ -133,7 +140,7 @@ class MainApp(ctk.CTk):
         ctk.CTkButton(self.auto_detection_frame, text="Seleziona...", command=self.select_yolo_model, width=100).grid(row=1, column=2, padx=10, pady=10)
 
         manual_options_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        manual_options_frame.grid(row=3, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
+        manual_options_frame.grid(row=4, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         
         # --- NUOVA STRUTTURA PULSANTI ---
         
@@ -164,7 +171,7 @@ class MainApp(ctk.CTk):
         
         # --- NUOVA SEZIONE PARAMETRI ---
         params_frame = ctk.CTkFrame(main_frame)
-        params_frame.grid(row=4, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
+        params_frame.grid(row=5, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         params_frame.grid_columnconfigure(1, weight=1)
         ctk.CTkLabel(params_frame, text="Parametri di Analisi", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, columnspan=3, padx=10, pady=(10,0), sticky="w")
         
@@ -178,7 +185,7 @@ class MainApp(ctk.CTk):
         ctk.CTkEntry(params_frame, textvariable=self.directional_excursion_threshold_perc, width=80).grid(row=3, column=1, padx=10, pady=5, sticky="w")
 
         analyses_frame = ctk.CTkFrame(main_frame)
-        analyses_frame.grid(row=5, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
+        analyses_frame.grid(row=6, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(analyses_frame, text="Analisi Aggiuntive:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(10,0))
         ctk.CTkCheckBox(analyses_frame, text="Genera grafici 'Frammentazione'", variable=self.run_fragmentation_analysis).pack(anchor="w", padx=25, pady=2)
         ctk.CTkCheckBox(analyses_frame, text="Calcola metriche 'Escursione' e 'Escursione Direzionale'", variable=self.run_excursion_analysis).pack(anchor="w", padx=25, pady=(2,10))
@@ -200,6 +207,15 @@ class MainApp(ctk.CTk):
         
         self.check_hardware_acceleration()
         self.check_inputs()
+
+    def run_organizer(self):
+        source_dir = filedialog.askdirectory(
+            title="Seleziona la cartella contenente i file ZIP da Pupil Cloud"
+        )
+        if not source_dir:
+            print("INFO: Organizzazione dati annullata.")
+            return
+        organize_files(source_dir)
 
     # --- MODIFICA: La funzione per il template ora offre una scelta ---
     def load_fixed_template(self):

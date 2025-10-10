@@ -20,7 +20,7 @@ L'obiettivo è automatizzare e standardizzare l'analisi delle performance visuo-
 
 ## 🚀 Modalità di Lavoro
 
-**ATTUALMENTE SI CONSIGLIA DI USARE CALDAMENTE LA MODALITà HOUGH CIRCLE**
+**ATTUALMENTE SI CONSIGLIA DI USARE LA MODALITà HOUGH CIRCLE**
 
 ### 1. Modalità Automatica (Default)
 Questa è la modalità standard. Il software esegue l'intera pipeline con il minimo intervento manuale:
@@ -149,6 +149,21 @@ Questi parametri vengono passati agli script di analisi quando si clicca su "Avv
 ## ⚙️ Acquisizione e Preparazione dei Dati
 
 Per garantire che i dati siano compatibili con la pipeline di analisi, è fondamentale seguire una procedura di registrazione e processamento standardizzata.
+
+### 0. Organizzazione Automatica dei Dati (Novità)
+
+Per semplificare al massimo la preparazione dei dati, è stato aggiunto un pulsante **"✨ 0. Organizza Dati da ZIP"** all'inizio della GUI. Questa funzione automatizza l'intero processo di preparazione della cartella di input.
+
+**Come funziona:**
+1.  **Scarica i Dati**: Scarica da Pupil Cloud i due archivi `.zip` necessari ("Time Series Data" e "QR Marker Mapper data") e salvali nella stessa cartella sul tuo computer. **Non è necessario scompattarli manualmente**.
+2.  **Clicca il Pulsante**: Avvia il software di analisi e clicca su **"✨ 0. Organizza Dati da ZIP"**.
+3.  **Seleziona la Cartella**: Seleziona la cartella in cui hai salvato i due file `.zip`.
+4.  **Fatto!**: Il software eseguirà automaticamente i seguenti passaggi:
+    - Scompatterà i file `.zip`.
+    - Identificherà e prenderà solo i file necessari (`video.mp4`, `gaze.csv`, ecc.).
+    - Rinominerà il video in `video.mp4`.
+    - Creerà una nuova cartella chiamata **`input_data`** (nella stessa posizione dei file ZIP) contenente tutti i file pronti per l'analisi.
+5.  A questo punto, puoi usare il pulsante "Seleziona..." per impostare questa nuova cartella `input_data` come **"Cartella Input"** e procedere con l'analisi.
 
 ### 1. Setup per la Registrazione (Pupil Neon + PowerPoint)
 
