@@ -105,7 +105,7 @@ class MainApp(ctk.CTk):
         self.input_dir = ctk.StringVar()
         self.output_dir = ctk.StringVar()
         self.yolo_model_path = ctk.StringVar()
-        self.detection_method = ctk.StringVar(value="YOLO")
+        self.detection_method = ctk.StringVar(value="Hough Circle")
         self.run_fragmentation_analysis = ctk.BooleanVar(value=False)
         self.run_excursion_analysis = ctk.BooleanVar(value=False)
         self.manual_events_path = ctk.StringVar()
