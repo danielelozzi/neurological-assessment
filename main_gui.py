@@ -583,13 +583,22 @@ class MainApp(ctk.CTk):
                     writer.writerow(['slow', self.slow_start_frame.get(), self.slow_end_frame.get()])
                 print("'cut_points.csv' creato con successo.")
             else:
-                print("Modalità automatica segmenti: avvio 'trim_video.py'...")
+                print("Modalità automatica segmenti: avvio ricerca OCR in 'trim_video.py'...")
                 args_trim = SimpleNamespace(
                     input_video=os.path.join(self.input_dir.get(), 'video.mp4'),
                     output_dir=self.output_dir.get()
                 )
-                trim_video.main(args_trim)
+                # Esegui la ricerca automatica. Se fallisce (ritorna False), gestisci l'interfaccia manuale nel thread principale.
+                auto_success = trim_video.main(args_trim)
+                if not auto_success:
+                    self.after(0, self.prompt_manual_trim_selection, args_trim)
+                    # L'analisi non può continuare finché l'utente non seleziona i frame.
+                    # Il thread di analisi terminerà qui; la selezione manuale riavvierà un nuovo thread.
+                    print("INFO: In attesa della selezione manuale dei segmenti dall'utente...")
+                    return # Interrompe l'esecuzione corrente del thread
 
+            # Se siamo qui, 'cut_points.csv' esiste (o per creazione manuale o per OCR riuscito)
+            # Possiamo procedere con il resto dell'analisi.
             print("\n--- Avvio 'detect_and_save_ball.py' ---")
             args_detect = SimpleNamespace(
                 input_dir=self.input_dir.get(),
@@ -638,6 +647,27 @@ class MainApp(ctk.CTk):
             traceback.print_exc()
         finally:
             self.after(0, self.analysis_finished, success, error_message)
+
+    def prompt_manual_trim_selection(self, args_trim):
+        """
+        Questa funzione viene chiamata nel thread principale della GUI quando la ricerca OCR fallisce.
+        Apre il selettore interattivo e, se l'utente conferma, riavvia l'analisi.
+        """
+        print("Ricerca automatica fallita. Apertura interfaccia per inserimento manuale...")
+        
+        # Passa 'self' (la finestra principale) come genitore
+        manual_frames = trim_video.select_frames_interactively_gui(self, args_trim.input_video)
+
+        if manual_frames and not manual_frames["cancelled"]:
+            print("INFO: Selezione manuale completata. Riavvio l'analisi con i nuovi punti di taglio.")
+            # Popola i campi della GUI con i frame scelti
+            self.fast_start_frame.set(str(manual_frames["fast"]))
+            self.slow_start_frame.set(str(manual_frames["slow"]))
+            # Riavvia il thread di analisi. Ora userà i valori manuali.
+            self.start_analysis_thread()
+        else:
+            print("ERRORE: Processo annullato dall'utente durante la selezione manuale. Analisi interrotta.")
+            self.run_button.configure(state="normal") # Riabilita il pulsante
 
     def select_input_dir(self):
         path = filedialog.askdirectory(title="Seleziona cartella input")

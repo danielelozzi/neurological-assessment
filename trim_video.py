@@ -162,25 +162,20 @@ class InteractiveFrameSelector(tk.Toplevel):
         self.destroy()
         self.cap.release()
 
-def select_frames_interactively_gui(video_path):
+def select_frames_interactively_gui(parent, video_path):
     """Funzione di avvio per il selettore interattivo."""
-    root = tk.Tk()
-    root.withdraw() # Nasconde la finestra principale di Tk
-    
-    # Crea il selettore come una finestra Toplevel
-    selector = None
     try:
-        selector = InteractiveFrameSelector(parent=root, video_path=video_path)
-        selector.transient(root)
+        # Usa il 'parent' fornito (la finestra principale della GUI)
+        selector = InteractiveFrameSelector(parent=parent, video_path=video_path)
+        selector.transient(parent)
         selector.grab_set()
         
         # Attende che la finestra del selettore venga chiusa
-        root.wait_window(selector)
+        parent.wait_window(selector)
         return selector.result
-    finally:
-        # Assicura che la finestra radice venga distrutta in ogni caso
-        if root.winfo_exists():
-            root.destroy()
+    except Exception as e:
+        print(f"ERRORE durante la creazione del selettore interattivo: {e}")
+        return {"fast": None, "slow": None, "cancelled": True}
 
 # --- Pipeline di pre-elaborazione OCR ---
 def preprocess_adaptive_gaussian(roi):
@@ -314,28 +309,20 @@ def main(args):
     print(" " * 70, end='\r')
     cap.release()
 
-    manual_frames = None
     if t0 == -1:
-        print("Ricerca automatica fallita. Apertura interfaccia per inserimento manuale...")
-        manual_frames = select_frames_interactively_gui(args.input_video)
-        if manual_frames["cancelled"]:
-            raise RuntimeError("Processo annullato dall'utente.")
+        # MODIFICA: Non apre più la GUI da qui. Ritorna False per segnalare il fallimento.
+        print("Ricerca automatica fallita. La GUI principale gestirà l'input manuale.")
+        return False
 
     os.makedirs(args.output_dir, exist_ok=True)
     
-    if manual_frames and not manual_frames["cancelled"]:
-        fast_start_frame = manual_frames["fast"]
-        slow_start_frame = manual_frames["slow"]
-        fast_end_frame = fast_start_frame + int(32 * fps) if fps > 0 else fast_start_frame + 960
-        slow_end_frame = slow_start_frame + int(70 * fps) if fps > 0 else slow_start_frame + 2100
-        print("Punti di taglio calcolati da input manuale.")
-    else:
-        t0 += int(5 * fps) if fps > 0 else 150
-        fast_start_frame = t0
-        fast_end_frame = t0 + int(32 * fps) if fps > 0 else t0 + 960
-        slow_start_frame = t0 + int((32 + 7) * fps) if fps > 0 else t0 + 1170
-        slow_end_frame = slow_start_frame + int(70 * fps) if fps > 0 else slow_start_frame + 2100
-        print("Punti di taglio calcolati da ricerca automatica.")
+    # Se t0 è stato trovato, calcola e salva i punti di taglio.
+    t0 += int(5 * fps) if fps > 0 else 150
+    fast_start_frame = t0
+    fast_end_frame = t0 + int(32 * fps) if fps > 0 else t0 + 960
+    slow_start_frame = t0 + int((32 + 7) * fps) if fps > 0 else t0 + 1170
+    slow_end_frame = slow_start_frame + int(70 * fps) if fps > 0 else slow_start_frame + 2100
+    print("Punti di taglio calcolati da ricerca automatica.")
 
     cut_points_path = os.path.join(args.output_dir, 'cut_points.csv')
     try:
@@ -349,3 +336,6 @@ def main(args):
         raise IOError(f"Errore durante il salvataggio di cut_points.csv: {e}")
 
     print("La creazione dei video 'trimmed' è stata saltata per ottimizzare il processo.")
+    
+    # MODIFICA: Ritorna True per segnalare il successo della ricerca automatica.
+    return True
