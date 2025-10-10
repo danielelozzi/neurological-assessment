@@ -168,16 +168,19 @@ def select_frames_interactively_gui(video_path):
     root.withdraw() # Nasconde la finestra principale di Tk
     
     # Crea il selettore come una finestra Toplevel
-    selector = InteractiveFrameSelector(parent=root, video_path=video_path)
-    selector.transient(root)
-    selector.grab_set()
-    
-    # Attende che la finestra del selettore venga chiusa
-    root.wait_window(selector)
-    
-    # Distrugge la finestra radice nascosta solo dopo che il lavoro è finito
-    root.destroy() 
-    return selector.result
+    selector = None
+    try:
+        selector = InteractiveFrameSelector(parent=root, video_path=video_path)
+        selector.transient(root)
+        selector.grab_set()
+        
+        # Attende che la finestra del selettore venga chiusa
+        root.wait_window(selector)
+        return selector.result
+    finally:
+        # Assicura che la finestra radice venga distrutta in ogni caso
+        if root.winfo_exists():
+            root.destroy()
 
 # --- Pipeline di pre-elaborazione OCR ---
 def preprocess_adaptive_gaussian(roi):

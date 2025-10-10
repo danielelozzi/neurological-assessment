@@ -215,7 +215,20 @@ class MainApp(ctk.CTk):
         if not source_dir:
             print("INFO: Organizzazione dati annullata.")
             return
-        organize_files(source_dir)
+        
+        input_path, output_path = organize_files(source_dir)
+
+        if input_path and output_path:
+            print("INFO: Impostazione automatica delle cartelle di Input e Output.")
+            self.input_dir.set(input_path)
+            self.output_dir.set(output_path)
+            
+            # Carica automaticamente il template di default
+            self.load_default_template()
+
+    def load_default_template(self):
+        default_template_path = os.path.join(os.path.dirname(__file__), 'relative_template.csv', 'relative_template.csv')
+        self.process_template_file(default_template_path)
 
     # --- MODIFICA: La funzione per il template ora offre una scelta ---
     def load_fixed_template(self):
@@ -230,6 +243,12 @@ class MainApp(ctk.CTk):
         )
         if not template_path:
             return
+
+        self.process_template_file(template_path)
+
+    def process_template_file(self, template_path):
+        """Logica centralizzata per processare un file template, dato il suo percorso."""
+        video_path = os.path.join(self.input_dir.get(), 'video.mp4')
 
         # --- NUOVO: Validazione delle colonne del file template ---
         try:
@@ -246,15 +265,7 @@ class MainApp(ctk.CTk):
             messagebox.showerror("Errore Lettura File", f"Impossibile leggere o validare il file CSV:\n{e}")
             return
         
-        # Tentativo di caricare anche gli eventi "main" dal template
-        try:
-            print(f"INFO: Tentativo di caricamento eventi 'main' da '{template_path}'...")
-            df_template_main = pd.read_csv(template_path)
-            df_segments = df_template_main[df_template_main['event_type'] == 'segment'].copy()
-        except Exception as e:
-            print(f"ATTENZIONE: Errore nel caricamento degli eventi 'main' dal template: {e}")
-
-            # Chiedi all'utente COME vuole inserire l'onset
+        # Chiedi all'utente COME vuole inserire l'onset
         choice_dialog = OnsetChoiceDialog(self)
         self.wait_window(choice_dialog)
         choice = choice_dialog.result
@@ -641,11 +652,29 @@ class MainApp(ctk.CTk):
         if path: self.yolo_model_path.set(path)
 
     def analysis_finished(self, success, error_message):
-        self.check_inputs()
+        """Chiamato quando il thread di analisi finisce. Mostra il risultato e resetta la GUI."""
         if success:
             messagebox.showinfo("Analisi Completata", f"L'analisi è terminata con successo.\nI risultati sono nella cartella di output:\n{self.output_dir.get()}")
         else:
             messagebox.showerror("Errore di Analisi", f"Si è verificato un errore durante l'analisi.\n\nDettagli: {error_message}\n\nControllare il log per ulteriori informazioni.")
+        
+        # --- NUOVO: Resetta la GUI per la prossima analisi ---
+        self.reset_gui_state()
+
+    def reset_gui_state(self):
+        """Resetta la GUI al suo stato iniziale, pronta per una nuova analisi."""
+        print("\nINFO: Reset della GUI per una nuova analisi.")
+        self.input_dir.set("")
+        self.output_dir.set("")
+        self.manual_events_path.set("")
+        self.fast_start_frame.set("")
+        self.fast_end_frame.set("")
+        self.slow_start_frame.set("")
+        self.slow_end_frame.set("")
+        self.run_fragmentation_analysis.set(False)
+        self.run_excursion_analysis.set(False)
+        print("INFO: Campi di input e parametri resettati.")
+        self.check_inputs() # Aggiorna lo stato del pulsante "Avvia"
 
     def check_hardware_acceleration(self):
         print("--- CONTROLLO ACCELERAZIONE HARDWARE ---")

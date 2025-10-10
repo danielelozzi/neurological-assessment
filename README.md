@@ -457,8 +457,9 @@ Questo script prende i dati grezzi calcolati nella fase precedente e li trasform
         -   **Processo per Trial**: Per ogni `trial_id`:
             1.  Identifica la direzione (es. `right`).
             2.  Trova la posizione più estrema raggiunta dalla palla in quella direzione (es. `max(ball_center_x_norm)`).
-            3.  Definisce una "linea del traguardo" virtuale basata su questa posizione e sulla `Soglia Bordo Esc. Direzionale (%)`.
-            4.  Controlla se lo sguardo (`gaze_x_norm`) ha mai superato questa linea durante il trial.
+            3.  **Definisce una "linea del traguardo" virtuale**: Questa linea non è fissa, ma viene calcolata dinamicamente. Si prende il bordo più esterno della palla nella direzione del movimento (es. il bordo destro per un movimento a destra) e lo si sposta leggermente verso il centro usando il valore della `Soglia Bordo Esc. Direzionale (%)`.
+                - **Esempio (movimento a destra)**: Se il bordo destro della palla arriva al 92% dello schermo e la soglia è 15%, la linea del traguardo sarà `0.92 - 0.15 = 0.77`.
+            4.  **Verifica**: Controlla se lo sguardo (`gaze_x_norm`) ha mai superato questa linea del traguardo durante il trial. Se sì, il trial è un successo per questa metrica.
         -   **Metrica Finale**: `(Numero di trial con traguardo raggiunto / Numero totale di trial) * 100`.
 
 5.  **Aggregazione e Scrittura Report**:

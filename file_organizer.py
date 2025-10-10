@@ -44,7 +44,7 @@ def organize_files(source_dir):
             error_msg += "- Manca il file ZIP di 'QR Marker Mapper' (deve contenere 'QR' nel nome).\n"
         messagebox.showerror("File ZIP Mancanti", error_msg)
         print(f"ERRORE: {error_msg.replace(chr(10)*2, chr(10))}") # Rimuove doppi a capo per il log
-        return
+        return None, None
 
     zip_files = [timeseries_zip, qr_zip]
     print(f"Trovati file ZIP specifici:\n - Time Series: {os.path.basename(timeseries_zip)}\n - QR Marker:   {os.path.basename(qr_zip)}")
@@ -75,9 +75,18 @@ def organize_files(source_dir):
         if os.path.exists(output_data_dir):
             if not messagebox.askyesno("Cartella Esistente", f"La cartella '{output_data_dir}' esiste già.\nVuoi sovrascriverla?"):
                 print("INFO: Operazione annullata dall'utente.")
-                return
+                return None, None
             shutil.rmtree(output_data_dir)
         os.makedirs(output_data_dir)
+
+        # Crea la cartella di output per i successivi risultati dell'analisi
+        analysis_output_dir = os.path.join(source_dir, "output_data")
+        if os.path.exists(analysis_output_dir):
+            if not messagebox.askyesno("Cartella Esistente", f"La cartella '{analysis_output_dir}' esiste già.\nVuoi sovrascriverla?"):
+                print("INFO: Operazione annullata dall'utente.")
+                return None, None
+            shutil.rmtree(analysis_output_dir)
+        os.makedirs(analysis_output_dir)
 
         # --- MODIFICA: Cerca i file ricorsivamente ---
         # Dizionario dei file da trovare: {nome file: cartella base in cui cercare}
@@ -109,12 +118,14 @@ def organize_files(source_dir):
                 print(f"ATTENZIONE: File '{dest_name}' non trovato ricorsivamente in '{base_folder}'")
         # --- FINE MODIFICA ---
 
-        messagebox.showinfo("Operazione Completata", f"Dati organizzati con successo!\nLa nuova cartella di input è:\n{output_data_dir}")
+        messagebox.showinfo("Operazione Completata", f"Dati organizzati con successo!\n\nInput: {output_data_dir}\nOutput: {analysis_output_dir}")
         print(f"\n--- Organizzazione completata. Dati pronti in '{output_data_dir}' ---")
+        return output_data_dir, analysis_output_dir
 
     except Exception as e:
         messagebox.showerror("Errore Inaspettato", f"Si è verificato un errore durante l'organizzazione:\n{e}")
         print(f"ERRORE: {e}")
+        return None, None
     finally:
         # Pulisci la cartella di estrazione temporanea
         if os.path.exists(temp_extract_dir):
