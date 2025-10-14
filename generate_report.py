@@ -305,37 +305,53 @@ def calculate_directional_excursion(df_input, margin_perc):
     def check_reach(group):
         direction = group['direction_simple'].iloc[0]
         
+        # --- CORREZIONE BUG ---
+        # Aggiungiamo un controllo per assicurarci che ci siano dati validi sulla posizione della palla
+        # prima di tentare di trovare il minimo/massimo. Se non ci sono, il trial non può avere successo.
+
         if direction == 'up':
+            if group['ball_center_y_norm'].isnull().all(): return False
             idx_min = group['ball_center_y_norm'].idxmin()
+            if pd.isna(idx_min): return False # Ulteriore sicurezza
             ball_top_edge = group.loc[idx_min, 'ball_center_y_norm'] - (group.loc[idx_min, 'ball_h_norm'] / 2)
             threshold_line_norm = ball_top_edge + margin_perc
             group.loc[idx_min, 'dir_ex_line_coord'] = threshold_line_norm * group['frame_height'].iloc[0]
             return (group['gaze_y_norm'] <= threshold_line_norm).any()
             
         elif direction == 'down':
+            if group['ball_center_y_norm'].isnull().all(): return False
             idx_max = group['ball_center_y_norm'].idxmax()
+            if pd.isna(idx_max): return False
             ball_bottom_edge = group.loc[idx_max, 'ball_center_y_norm'] + (group.loc[idx_max, 'ball_h_norm'] / 2)
             threshold_line_norm = ball_bottom_edge - margin_perc
             group.loc[idx_max, 'dir_ex_line_coord'] = threshold_line_norm * group['frame_height'].iloc[0]
             return (group['gaze_y_norm'] >= threshold_line_norm).any()
 
         elif direction == 'left':
+            if group['ball_center_x_norm'].isnull().all(): return False
             idx_min = group['ball_center_x_norm'].idxmin()
+            if pd.isna(idx_min): return False
             ball_left_edge = group.loc[idx_min, 'ball_center_x_norm'] - (group.loc[idx_min, 'ball_w_norm'] / 2)
             threshold_line_norm = ball_left_edge + margin_perc
             group.loc[idx_min, 'dir_ex_line_coord'] = threshold_line_norm * group['frame_width'].iloc[0]
             return (group['gaze_x_norm'] <= threshold_line_norm).any()
 
         elif direction == 'right':
+            if group['ball_center_x_norm'].isnull().all(): return False
             idx_max = group['ball_center_x_norm'].idxmax()
+            if pd.isna(idx_max): return False
             ball_right_edge = group.loc[idx_max, 'ball_center_x_norm'] + (group.loc[idx_max, 'ball_w_norm'] / 2)
             threshold_line_norm = ball_right_edge - margin_perc
             group.loc[idx_max, 'dir_ex_line_coord'] = threshold_line_norm * group['frame_width'].iloc[0]
             return (group['gaze_x_norm'] >= threshold_line_norm).any()
             
         return False
+    
+    # Applica la funzione in modo sicuro. Se check_reach fallisce per qualche motivo imprevisto,
+    # il risultato per quel gruppo sarà False invece di far crashare il programma.
+    safe_apply = lambda group: check_reach(group) if not group.empty else False
+    results = df_trials_only.groupby('trial_id').apply(safe_apply)
 
-    results = df_trials_only.groupby('trial_id').apply(check_reach)
     dir_excursion_data = results.reset_index(name='directional_excursion_success')
     dir_excursion_data['directional_excursion_reached'] = dir_excursion_data['directional_excursion_success'].astype(float)
 

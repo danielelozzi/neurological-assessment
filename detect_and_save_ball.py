@@ -165,6 +165,26 @@ def main(args):
     if 'world_index' not in surface_positions.columns:
         surface_positions['world_index'] = surface_positions.index
 
+    # --- NUOVO: Pre-carica gli eventi per sapere quando ricalcolare i parametri ---
+    # Questo ci permette di sapere in anticipo a quale trial appartiene ogni frame.
+    manual_events_path = os.path.join(args.output_dir, 'manual_events_fixed.csv')
+    if os.path.exists(manual_events_path):
+        df_events = pd.read_csv(manual_events_path)
+        # Crea una colonna 'trial_id' nel dataframe principale basata sugli eventi
+        aligned_gaze_data['trial_id'] = 0
+        trial_counter = 0
+        for _, event in df_events.iterrows():
+            trial_counter += 1
+            mask = (aligned_gaze_data['world_index'] >= event['start_frame']) & (aligned_gaze_data['world_index'] <= event['end_frame'])
+            aligned_gaze_data.loc[mask, 'trial_id'] = trial_counter
+    else:
+        # Se non ci sono eventi manuali, non possiamo sapere quando ricalcolare.
+        # In questo scenario (improbabile), manteniamo la logica di calcolo singolo.
+        aligned_gaze_data['trial_id'] = 0
+    
+    # Aggiungiamo uno shift per confrontare il trial_id con quello precedente
+    aligned_gaze_data['prev_trial_id'] = aligned_gaze_data['trial_id'].shift(1).fillna(0)
+
     df_cuts = pd.read_csv(cut_points_path)
 
     # Configurazione del modello di rilevamento
@@ -186,9 +206,8 @@ def main(args):
         raise IOError(f"Errore: Impossibile aprire il video {input_video_path}")    
     analysis_results = []
 
-    # --- NUOVA OTTIMIZZAZIONE ---
-    # Inizializziamo i parametri Hough una sola volta per evitare di ricalcolarli per ogni segmento.
-    global_hough_params, global_params_found = None, False
+    # I parametri verranno ora ricalcolati per ogni trial
+    current_hough_params = None
 
     # Ciclo principale sui segmenti (fast/slow)
     for _, cut_row in df_cuts.iterrows():
@@ -253,15 +272,18 @@ def main(args):
             # --- Da qui in poi, siamo sicuri che 'warped_frame' e 'out' sono validi ---
 
             # Rilevamento della palla (YOLO o Hough)
-            if not args.use_yolo and not global_params_found:
-                global_hough_params = find_optimal_hough_params(warped_frame)
-                global_params_found = True
+            # --- NUOVA LOGICA: Ricalcola i parametri all'inizio di ogni trial ---
+            is_start_of_new_trial = (gaze_info['trial_id'] > 0 and gaze_info['trial_id'] != gaze_info['prev_trial_id'])
+            if not args.use_yolo and (current_hough_params is None or is_start_of_new_trial):
+                if is_start_of_new_trial:
+                    print(f"INFO: Inizio nuovo trial ({int(gaze_info['trial_id'])}). Ricalcolo parametri Hough...")
+                current_hough_params = find_optimal_hough_params(warped_frame)
 
             ball_bbox, norm_ball_x, norm_ball_y = None, np.nan, np.nan
             if args.use_yolo:
                 ball_bbox, norm_ball_x, norm_ball_y = detect_ball_yolo(warped_frame, model, sports_ball_class_id)
             else:
-                ball_bbox, norm_ball_x, norm_ball_y = detect_ball_hough(warped_frame, global_hough_params)
+                ball_bbox, norm_ball_x, norm_ball_y = detect_ball_hough(warped_frame, current_hough_params)
 
             # Logica per disegnare overlay (direzione, gaze, box)
             gaze_in_box_status, gaze_color = False, (0, 0, 255)

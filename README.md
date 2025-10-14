@@ -495,3 +495,39 @@ Questo script finale crea una visualizzazione dei risultati.
 3.  **Salvataggio Video**:
     -   **File Output**: `final_video_fast.mp4`, `final_video_slow.mp4`.
     -   I video finali contengono tutti gli overlay visivi, fornendo un riscontro immediato e qualitativo dell'analisi quantitativa.
+
+---
+
+## 📚 Appendice B: Gestione dei Dati Mancanti
+
+Il software è progettato per essere robusto e gestire in modo controllato i casi in cui i dati di input sono incompleti. Ecco come vengono gestiti i diversi scenari di dati mancanti:
+
+#### Scenario 1: La palla non viene rilevata in un frame
+
+Questo può accadere a causa di riflessi, occlusioni o parametri di rilevamento non ottimali per quel frame specifico.
+
+-   **Script Coinvolto**: `detect_and_save_ball.py`
+-   **Comportamento**: L'analisi **non si interrompe**. Per quel frame, le colonne relative alla posizione della palla (`ball_center_x_norm`, etc.) vengono salvate con un valore `NaN` (Not a Number). Di conseguenza, la metrica `gaze_in_box` per quel frame sarà `False`.
+-   **Risultato**: Il frame viene incluso nell'analisi, ma contribuirà negativamente alle metriche di inseguimento che si basano sulla posizione della palla.
+
+#### Scenario 2: I dati dello sguardo (`gaze`) mancano per un frame
+
+Questo si verifica quando l'eye tracker perde temporaneamente il tracciamento.
+
+-   **Script Coinvolto**: `detect_and_save_ball.py`
+-   **Comportamento**: All'inizio dell'analisi di ogni frame, lo script verifica la presenza di dati di sguardo validi. Se mancano, l'intero frame viene **saltato** (`continue`).
+-   **Risultato**: Nessuna riga per quel frame viene scritta nel file di output `output_final_analysis_analysis.csv`. Il frame viene di fatto escluso da tutte le analisi successive.
+
+#### Scenario 3: Mancano sia la palla che lo sguardo in un frame
+
+-   **Script Coinvolto**: `detect_and_save_ball.py`
+-   **Comportamento**: Il controllo sulla presenza dei dati di sguardo ha la precedenza. Poiché i dati dello sguardo mancano, il frame viene saltato prima ancora che lo script tenti di rilevare la palla.
+-   **Risultato**: Il frame viene escluso da tutte le analisi, come nello Scenario 2.
+
+#### Scenario 4: I dati della palla sono vuoti per un intero trial
+
+Questo è lo scenario più critico, che si verifica se l'algoritmo non riesce a rilevare la palla in nessuno dei frame che compongono un trial.
+
+-   **Script Coinvolto**: `generate_report.py`
+-   **Comportamento**: Grazie a controlli di robustezza specifici (es. `if group['ball_center_y_norm'].isnull().all()`), lo script rileva che per un intero trial i dati della palla sono `NaN`. Invece di generare un errore, considera il trial un fallimento per le metriche che dipendono dalla posizione della palla (come `directional_excursion`).
+-   **Risultato**: L'analisi **non si interrompe**. Quel trial specifico verrà registrato nel report finale come un fallimento per quella metrica (es. `directional_excursion_success` sarà `False`), ma non influenzerà il calcolo degli altri trial validi.
