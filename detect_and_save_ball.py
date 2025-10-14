@@ -136,7 +136,7 @@ def align_timestamps_and_filter(world_timestamps_path, gaze_data_path):
     aligned_data = pd.merge_asof(
         world_timestamps, gaze_on_surface,
         left_on='world_timestamp_dt', right_on='gaze_timestamp_dt',
-        direction='nearest', tolerance=pd.Timedelta('100ms')
+        direction='nearest', tolerance=pd.Timedelta('20ms')
     )
     print("Allineamento completato.")
     return aligned_data
