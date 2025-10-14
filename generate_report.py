@@ -348,6 +348,13 @@ def main(args):
     cuts_path = os.path.join(args.analysis_dir, 'cut_points.csv')
     df_main = pd.read_csv(analysis_path)
 
+    # --- NUOVO: Aggiungi le dimensioni del frame all'inizio ---
+    # Questo garantisce che le colonne 'frame_width' e 'frame_height' siano disponibili
+    # per tutte le funzioni successive, come 'calculate_directional_excursion'.
+    w, h = get_video_dimensions(os.path.join(args.input_dir_for_pupil, 'video.mp4'))
+    df_main['frame_width'] = w
+    df_main['frame_height'] = h
+
     # --- MODIFICA FONDAMENTALE ---
     # Carica esplicitamente i timestamp del video per garantire la sincronizzazione.
     world_timestamps_path = os.path.join(args.input_dir_for_pupil, 'world_timestamps.csv')
@@ -368,10 +375,6 @@ def main(args):
     else:
         print("ATTENZIONE: 'world_timestamps.csv' non trovato. Sincronizzazione imprecisa.")
     # --- FINE MODIFICA ---
-
-    w, h = get_video_dimensions(os.path.join(args.input_dir_for_pupil, 'video.mp4'))
-    df_main['frame_width'] = w
-    df_main['frame_height'] = h
 
     df_cuts = pd.read_csv(cuts_path)
     df_main['segment_name'] = ''
