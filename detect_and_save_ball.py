@@ -186,6 +186,10 @@ def main(args):
         raise IOError(f"Errore: Impossibile aprire il video {input_video_path}")    
     analysis_results = []
 
+    # --- NUOVA OTTIMIZZAZIONE ---
+    # Inizializziamo i parametri Hough una sola volta per evitare di ricalcolarli per ogni segmento.
+    global_hough_params, global_params_found = None, False
+
     # Ciclo principale sui segmenti (fast/slow)
     for _, cut_row in df_cuts.iterrows():
         segment_name = cut_row['segment_name']
@@ -193,13 +197,13 @@ def main(args):
         end_frame = int(cut_row['end_frame'])
 
         print(f"\n--- Elaborazione del segmento: '{segment_name}' (Frame {start_frame}-{end_frame}) ---")
-
-        cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)        
-        output_width, output_height = 0, 0
-        hough_params, params_found = None, False
-
+        output_width, output_height = 0, 0 # Verranno determinate al primo frame valido
         frame_count = start_frame
         while frame_count < end_frame:
+            # --- CORREZIONE LOGICA ---
+            # 1. Imposta la posizione esatta del frame che vogliamo leggere.
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_count)
+            # 2. Leggi SUBITO DOPO il frame a quella posizione.
             ret, original_frame = cap.read()
             if not ret:
                 print(f"ATTENZIONE: Interruzione anticipata del video prima del frame {end_frame}.")
@@ -211,6 +215,7 @@ def main(args):
 
             # Salta il frame se mancano dati essenziali
             if current_frame_gaze_info.empty or crop_info.empty or crop_info[['tl x [px]', 'tl y [px]']].isnull().values.any():
+                print(f"INFO: Dati di sguardo o superficie mancanti per il frame {frame_count}. Salto.")
                 frame_count += 1
                 continue
             
@@ -248,15 +253,15 @@ def main(args):
             # --- Da qui in poi, siamo sicuri che 'warped_frame' e 'out' sono validi ---
 
             # Rilevamento della palla (YOLO o Hough)
-            if not args.use_yolo and not params_found:
-                hough_params = find_optimal_hough_params(warped_frame)
-                params_found = True
+            if not args.use_yolo and not global_params_found:
+                global_hough_params = find_optimal_hough_params(warped_frame)
+                global_params_found = True
 
             ball_bbox, norm_ball_x, norm_ball_y = None, np.nan, np.nan
             if args.use_yolo:
                 ball_bbox, norm_ball_x, norm_ball_y = detect_ball_yolo(warped_frame, model, sports_ball_class_id)
             else:
-                ball_bbox, norm_ball_x, norm_ball_y = detect_ball_hough(warped_frame, hough_params)
+                ball_bbox, norm_ball_x, norm_ball_y = detect_ball_hough(warped_frame, global_hough_params)
 
             # Logica per disegnare overlay (direzione, gaze, box)
             gaze_in_box_status, gaze_color = False, (0, 0, 255)
