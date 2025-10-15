@@ -12,7 +12,7 @@ class InteractiveVideoSelector(tk.Toplevel):
     Permette di scorrere il video, definire l'inizio e la fine di un evento,
     etichettarlo e salvarlo in una lista.
     """
-    def __init__(self, parent, video_path, event_types, title="Selettore Video Interattivo"):
+    def __init__(self, parent, video_path, event_types, initial_events=None, title="Selettore Video Interattivo"):
         super().__init__(parent)
         self.title(title)
         self.transient(parent)
@@ -28,7 +28,7 @@ class InteractiveVideoSelector(tk.Toplevel):
         self.is_playing = False
         self.current_frame_num = 0
         self.temp_start_frame = None
-        self.defined_events = []
+        self.defined_events = initial_events if initial_events is not None else []
         self.result = None # Conterrà la lista di eventi al termine
 
         # --- GUI ---
@@ -86,6 +86,10 @@ class InteractiveVideoSelector(tk.Toplevel):
         self.update()
         self.show_first_frame()
         self.update_video_loop()
+        
+        # Se ci sono eventi iniziali, popola subito la lista
+        if self.defined_events:
+            self.update_listbox()
 
     def show_first_frame(self):
         ret, frame = self.cap.read()

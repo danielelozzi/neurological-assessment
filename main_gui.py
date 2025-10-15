@@ -302,13 +302,23 @@ class MainApp(ctk.CTk):
             self.slow_start_frame.set(str(int(slow_segment['start_frame'])))
             self.slow_end_frame.set(str(int(slow_segment['end_frame'])))
             print("INFO: Campi dei segmenti compilati e modalità manuale attivata.")
-            df_trials = df_template[df_template['event_type'] == 'trial'].copy()
-            df_trials['segment_name'] = df_trials.apply(
-                lambda row: 'fast' if (row['start_frame'] >= fast_segment['start_frame'] and row['start_frame'] < fast_segment['end_frame']) else 'slow',
-                axis=1
-            )
-            df_trials.rename(columns={'direction': 'direction_simple'}, inplace=True)
             
+            df_trials = df_template[df_template['event_type'] == 'trial'].copy()
+
+            # --- CORREZIONE: Logica di assegnazione segmento più robusta ---
+            def assign_segment(row, fast_seg, slow_seg):
+                if fast_seg['start_frame'] <= row['start_frame'] < fast_seg['end_frame']:
+                    return 'fast'
+                elif slow_seg['start_frame'] <= row['start_frame'] < slow_seg['end_frame']:
+                    return 'slow'
+                return None # Ritorna None se non appartiene a nessun segmento
+
+            df_trials['segment_name'] = df_trials.apply(assign_segment, args=(fast_segment, slow_segment), axis=1)
+            
+            # Rimuovi i trial che non sono stati assegnati a nessun segmento valido
+            df_trials.dropna(subset=['segment_name'], inplace=True)
+
+            df_trials.rename(columns={'direction': 'direction_simple'}, inplace=True)
             output_csv_path = os.path.join(self.output_dir.get(), "manual_events_fixed.csv")
             df_trials[['segment_name', 'direction_simple', 'start_frame', 'end_frame']].to_csv(output_csv_path, index=False)
             
@@ -462,8 +472,25 @@ class MainApp(ctk.CTk):
             messagebox.showerror("Errore", "Seleziona una cartella di Input valida contenente 'video.mp4'.")
             return
 
+        # --- NUOVA LOGICA: Carica gli eventi esistenti se disponibili ---
+        initial_events = []
+        if self.manual_events_path.get() and os.path.exists(self.manual_events_path.get()):
+            try:
+                print(f"INFO: Caricamento eventi esistenti da '{self.manual_events_path.get()}' per la modifica interattiva.")
+                df_existing = pd.read_csv(self.manual_events_path.get())
+                # Converti il dataframe nel formato richiesto dal selettore
+                for _, row in df_existing.iterrows():
+                    initial_events.append({
+                        "label": row['direction_simple'],
+                        "start": row['start_frame'],
+                        "end": row['end_frame']
+                    })
+            except Exception as e:
+                print(f"ATTENZIONE: Impossibile pre-caricare gli eventi per la modifica. {e}")
+        # --- FINE NUOVA LOGICA ---
+
         event_types = ['right', 'left', 'up', 'down']
-        selector = InteractiveVideoSelector(self, video_path, event_types=event_types, title="Definisci Eventi di Movimento")
+        selector = InteractiveVideoSelector(self, video_path, event_types=event_types, initial_events=initial_events, title="Definisci/Modifica Eventi di Movimento")
         self.wait_window(selector)
 
         if selector.result and len(selector.result) > 0:
@@ -471,7 +498,7 @@ class MainApp(ctk.CTk):
                 title="Salva file eventi CSV",
                 defaultextension=".csv",
                 filetypes=[("CSV Files", "*.csv")],
-                initialfile="manual_events.csv"
+                initialfile="manual_events_modified.csv" # Nome file suggerito diverso
             )
             if save_path:
                 df_data = []
