@@ -155,7 +155,7 @@ Per garantire che i dati siano compatibili con la pipeline di analisi, è fondam
 Per semplificare al massimo la preparazione dei dati, è stato aggiunto un pulsante **"✨ 0. Organizza Dati da ZIP"** all'inizio della GUI. Questa funzione automatizza l'intero processo di preparazione della cartella di input.
 
 **Come funziona:**
-1.  **Scarica i Dati**: Scarica da Pupil Cloud i due archivi `.zip` necessari ("Time Series Data" e "QR Marker Mapper data") e salvali nella stessa cartella sul tuo computer. **Non è necessario scompattarli manualmente**.
+1.  **Scarica i Dati**: Scarica da Pupil Cloud i due archivi `.zip` necessari ("Timeseries CSV and Scene Video" e "QR Marker Mapper data") e salvali nella stessa cartella sul tuo computer. **Non è necessario scompattarli manualmente**.
 2.  **Clicca il Pulsante**: Avvia il software di analisi e clicca su **"✨ 0. Organizza Dati da ZIP"**.
 3.  **Seleziona la Cartella**: Seleziona la cartella in cui hai salvato i due file `.zip`.
 4.  **Fatto!**: Il software eseguirà automaticamente i seguenti passaggi:
