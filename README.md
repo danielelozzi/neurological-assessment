@@ -256,7 +256,7 @@ pip install -r requirements.txt
 # Navigate to the desktop_app folder
 cd neurological-assessment
 conda activate neurological-assessment
-python gui_main.py
+python main_gui.py
 ```
 
 ---
